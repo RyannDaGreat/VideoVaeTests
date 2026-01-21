@@ -1,0 +1,14 @@
+# Extended from ltx-core pyproject.toml
+torch~=2.7
+torchaudio
+einops
+numpy
+transformers
+safetensors
+accelerate
+scipy>=1.14
+
+# Additional for notebook
+rp
+decord
+rclone-python

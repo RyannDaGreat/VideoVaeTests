@@ -1,10 +1,18 @@
 Use RP functions everywhere.
-Look each function up to understand its purpose and implementation. Don't skimp on this. 
+Look each function up to understand its purpose and implementation. Don't skimp on this.
 We need to make a Jupyter Notebook that encodes and decodes videos with the VAE
 Paths should all be relative
 #... indicates its pseudocode you need to make it work
 
-Test this and make sure it works then make a notebook with it. Do research on all repos thoroughly and rp functions. 
+Test this and make sure it works then make a notebook with it. Do research on all repos thoroughly and rp functions.
+
+## IMPORTANT NOTES
+- The notebook will be the only artifact left from your endeavor barring perhaps a requirements file. It should have no dependencies outside this project and all other files will be deleted.
+- Put everything you need into the notebook with nothing else.
+- You'll be using the LTX micromamba environment which has everything set up.
+- Tests run the python code of the cells all at once, except for display_video.
+- Instead of display_video, use rp.save_video_mp4 in tests and use VLM to validate the output - videos should be hyper similar.
+- No visual artifacts should be seen in the VAE after decoding/encoding - the reconstruction should be high quality. 
 
 #Site Packages Imports
 import rp
