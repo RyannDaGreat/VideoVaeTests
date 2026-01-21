@@ -1,0 +1,83 @@
+Use RP functions everywhere.
+Look each function up to understand its purpose and implementation. Don't skimp on this. 
+We need to make a Jupyter Notebook that encodes and decodes videos with the VAE
+Paths should all be relative
+#... indicates its pseudocode you need to make it work
+
+Test this and make sure it works then make a notebook with it. Do research on all repos thoroughly and rp functions. 
+
+#Site Packages Imports
+import rp
+import rclone_python #pip install rclone-python in our requirements file. please make a requirements file that extends the LTX repo's requirements (copy their reqs then add rp and this)
+
+#Set up paths
+top_dir = rp.get_git_working_dir()
+ltx_dir = rp.path_join(top_dir,'ltx')
+models_dir = rp.path_join(ltx_dir,'models') #these are on /root which is a network drive. very slow.
+vae_path = rp.path_join(models_dir,'vae_checkpoint.pth') #...
+
+#Project Imports
+import LTX #...
+
+#Device selection
+device = rp.select_torch_device(prefer_used=True,reserve=True)
+dtype = bfloat16
+vae = LTX.vae(vae_path, device, dtype)
+
+def encode_video(rgb_video):
+	#Read rp and use the definition of these to infer types for the docstring
+	#Normally rgb_video will be numpy-like in THW3 form
+	numpy_video = rp.as_rgb_images(rgb_video, copy=False)
+	torch_video = rp.as_torch_images(numpy_video, copy=False, device=device, dtype=dtype)
+
+	latent_video = vae.encode(torch_video)
+
+	rp.validate_tensor_shapes(
+		numpy_video ="numpy:  T  H  W  3",
+		torch_video ="torch:  T  3  H  W",
+		latent_video="torch: LT LC LH LW",
+	)  # This specifies the intentions as self documenting code. Signatures must match or this notebook is buggy.
+	#LT LC LH LW = latent time latent channels latent height latent width etc thats our convention adhere the whole notebook to it
+
+	return latent_video
+
+def decode_video(latent_video):
+	rp.validate_tensor_shapes(
+		...
+	)
+	
+def redecode_video(rgb_video):
+	#test how well encoder preserves info...
+	return decode_video(encode_video(rgb_video))
+
+
+### New cell
+
+video_path = rp.download_to_cache('https://www.pexels.com/download/video/5291434/')
+numpy_video_0 = rp.load_video_via_decord(video_path, 150)
+numpy_video_0 = rp.resize_images(numpy_video_0, (720, 1080), allow_growth=False)
+numpy_video_0 = numpy_video_0
+
+rp.tic()
+numpy_video_1 = redecode_video(numpy_video_0)
+rp.ptoc('Redecoding')
+
+comparison_video = rp.horizontally_concatenated_videos(
+    rp.resize_lists_to_min_len(
+        rp.resize_videos_to_min_size(
+			rp.labeled_videos([
+            numpy_video_0,
+            numpy_video_1,],[
+				'Input Video',
+				'Redecoded'
+			],font='R:Futura'
+        ),
+    ),
+)
+
+rp.validate_tensor_shapes(numpy_video_0='T H W 3', numpy_video_1='T H W 3')
+
+rp.display_video(comparison_video, framerate=30)
+
+
+
