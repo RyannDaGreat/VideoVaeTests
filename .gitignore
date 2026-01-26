@@ -23,3 +23,5 @@
 #<RP Default Gitignore End>
 
 Notebooks/vae_comparison.mp4
+*.safetensors
+*.model
