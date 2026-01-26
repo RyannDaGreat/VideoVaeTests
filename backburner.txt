@@ -1,0 +1,22 @@
+# Backburner: Two-Stage Without Distilled LoRA
+
+## Finding
+ICLoraPipeline runs Stage 2 WITHOUT distilled LoRA - it passes `loras=[]`.
+
+## Fix for ti2vid_two_stages.py
+Line 71-73, change:
+```python
+self.stage_2_model_ledger = self.stage_1_model_ledger.with_loras(
+    loras=distilled_lora,
+)
+```
+
+To:
+```python
+self.stage_2_model_ledger = self.stage_1_model_ledger.with_loras(
+    loras=[],  # No distilled LoRA, like ICLoraPipeline
+)
+```
+
+The distilled sigma schedule (STAGE_2_DISTILLED_SIGMA_VALUES) can stay the same.
+ICLoraPipeline proves vanilla transformer + 3 steps at sigma 0.909375 works.
