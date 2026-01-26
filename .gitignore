@@ -25,3 +25,5 @@
 Notebooks/vae_comparison.mp4
 *.safetensors
 *.model
+.claude_todo.md
+scratchpad.py
