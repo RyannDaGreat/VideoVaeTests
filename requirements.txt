@@ -12,3 +12,10 @@ scipy>=1.14
 rp
 decord
 rclone-python
+py3nvml
+xmltodict
+moviepy
+opencv-python
+opencv-contrib-python
+mediapy
+av
