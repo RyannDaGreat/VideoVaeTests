@@ -54,6 +54,7 @@ def download_to_local():
     download_from_web()
     if download_dir == local_download_dir:
         return
+    rp.r._ensure_rclone_installed()
     command = f'rclone copy --progress --transfers 32 {shlex.quote(download_dir)} {shlex.quote(local_download_dir)}'
     rp.r._run_sys_command(command)
 
