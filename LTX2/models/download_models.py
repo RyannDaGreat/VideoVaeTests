@@ -1,5 +1,8 @@
+import os
+
 import rp
 import shlex
+from huggingface_hub import snapshot_download
 
 download_dir = rp.get_path_parent(__file__)
 local_download_dir = "/models/LTX2" #For Eyeline computers, else make it = download_dir
@@ -30,6 +33,8 @@ model_urls = [
     ]
 ]
 
+gemma_repo = "google/gemma-3-12b-it-qat-q4_0-unquantized"
+
 def download_from_web():
     with rp.SetCurrentDirectoryTemporarily(download_dir):
         for url in rp.eta(model_urls, "Downloading Models"):
@@ -37,6 +42,13 @@ def download_from_web():
             # print()
             rp.download_url(url, skip_existing=True, show_progress=True)
             # print()
+
+    # Gemma text encoder (gated repo, set HF_TOKEN env var)
+    print(f"Downloading {gemma_repo}...")
+    snapshot_download(
+        gemma_repo,
+        local_dir=os.path.join(download_dir, gemma_repo.split("/")[-1]),
+    )
 
 def download_to_local():
     download_from_web()
