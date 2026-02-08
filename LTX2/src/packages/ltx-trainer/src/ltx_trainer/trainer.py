@@ -342,13 +342,12 @@ class LtxvTrainer:
         #   The text encoder is kept (as self._text_encoder) but with model/tokenizer/feature_extractor
         #   set to None. Only the embedding connectors remain for use during training.
 
-        # Load text encoder on GPU
+        # Load text encoder on CPU (connectors moved to GPU later in _prepare_models_for_training)
         logger.debug("Loading text encoder...")
-
         self._text_encoder = load_text_encoder(
             checkpoint_path=self._config.model.model_path,
             gemma_model_path=self._config.model.text_encoder_path,
-            device="cuda",
+            device="cpu",
             dtype=torch.bfloat16,
             load_in_8bit=self._config.acceleration.load_text_encoder_in_8bit,
         )
@@ -537,7 +536,9 @@ class LtxvTrainer:
         if self._vae_encoder is not None:
             self._vae_encoder = self._vae_encoder.to("cpu")
 
-        # Embedding connectors are already on GPU from _load_text_encoder_and_cache_embeddings
+        # Move embedding connectors to the correct GPU (loaded on CPU to avoid multi-GPU OOM)
+        self._text_encoder.embeddings_connector = self._text_encoder.embeddings_connector.to(self._accelerator.device)
+        self._text_encoder.audio_embeddings_connector = self._text_encoder.audio_embeddings_connector.to(self._accelerator.device)
 
         # noinspection PyTypeChecker
         self._transformer = self._accelerator.prepare(self._transformer)
