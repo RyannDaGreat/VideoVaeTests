@@ -342,14 +342,19 @@ class LtxvTrainer:
         #   The text encoder is kept (as self._text_encoder) but with model/tokenizer/feature_extractor
         #   set to None. Only the embedding connectors remain for use during training.
 
-        # Load text encoder on CPU (connectors moved to GPU later in _prepare_models_for_training)
+        # In multi-GPU DDP, all processes load text encoder simultaneously before the accelerator
+        # is set up, so device="cuda" puts 8 copies of 12B Gemma on GPU 0 = OOM.
+        # CPU is safe since only the tiny connectors are kept (moved to GPU in _prepare_models_for_training).
+        # Single-GPU keeps "cuda" so validation prompt encoding stays fast.
+        # If we never needed validation, this could just be hardcoded to "cpu".
         logger.debug("Loading text encoder...")
+        _te_device = "cpu" if int(os.environ.get("WORLD_SIZE", "1")) > 1 else "cuda"
         self._text_encoder = load_text_encoder(
             checkpoint_path=self._config.model.model_path,
             gemma_model_path=self._config.model.text_encoder_path,
-            device="cpu",
+            device=_te_device,
             dtype=torch.bfloat16,
-            load_in_8bit=self._config.acceleration.load_text_encoder_in_8bit,
+            load_in_8bit=self._config.acceleration.load_text_encoder_in_8bit if _te_device != "cpu" else False,
         )
 
         # Cache validation embeddings if prompts are configured
