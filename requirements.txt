@@ -19,3 +19,6 @@ opencv-python
 opencv-contrib-python
 mediapy
 av
+
+#Other things I just want in general - you should have them
+pandas
