@@ -1,0 +1,10 @@
+inference_outputs/
+outputs/
+datasets/.precomputed/
+datasets/videos/
+datasets/reference_videos/
+datasets/test_videos/
+datasets/test_reference_videos/
+.scratchwork/
+__pycache__/
+*.pyc
