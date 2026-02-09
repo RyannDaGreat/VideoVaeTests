@@ -1,0 +1,85 @@
+acceleration:
+  load_text_encoder_in_8bit: false
+  mixed_precision_mode: bf16
+  quantization: null
+checkpoints:
+  interval: 50
+  keep_last_n: -1
+  precision: bfloat16
+data:
+  num_dataloader_workers: 2
+  preprocessed_data_root: /root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTestAblation/datasets/.precomputed
+flow_matching:
+  timestep_sampling_mode: shifted_logit_normal
+  timestep_sampling_params: {}
+hub:
+  hub_model_id: null
+  push_to_hub: false
+lora:
+  alpha: 128
+  dropout: 0.0
+  rank: 128
+  target_modules:
+  - attn1.to_k
+  - attn1.to_q
+  - attn1.to_v
+  - attn1.to_out.0
+  - attn2.to_k
+  - attn2.to_q
+  - attn2.to_v
+  - attn2.to_out.0
+  - ff.net.0.proj
+  - ff.net.2
+model:
+  load_checkpoint: null
+  model_path: /models/LTX2/ltx-2-19b-dev.safetensors
+  text_encoder_path: /models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized
+  training_mode: lora
+optimization:
+  batch_size: 1
+  enable_gradient_checkpointing: true
+  gradient_accumulation_steps: 1
+  learning_rate: 2.0e-05
+  max_grad_norm: 1.0
+  optimizer_type: adamw
+  scheduler_params: {}
+  scheduler_type: linear
+  steps: 100000
+output_dir: /root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTestAblation/outputs
+seed: 42
+training_strategy:
+  first_frame_conditioning_p: 0.2
+  name: video_to_video
+  reference_latents_dir: reference_latents
+validation:
+  frame_rate: 25.0
+  generate_audio: false
+  guidance_scale: 4.0
+  images: null
+  include_reference_in_output: true
+  inference_steps: 30
+  interval: null
+  negative_prompt: worst quality, inconsistent motion, blurry, jittery, distorted
+  prompts: []
+  reference_videos: null
+  seed: 42
+  skip_initial_validation: true
+  stg_blocks:
+  - 29
+  stg_mode: stg_v
+  stg_scale: 1.0
+  video_dims: !!python/tuple
+  - 512
+  - 320
+  - 121
+  videos_per_prompt: 1
+wandb:
+  enabled: true
+  entity: null
+  log_validation_videos: true
+  project: ltx-2-trainer
+  tags:
+  - ltx2
+  - ic-lora
+  - frame-flicker
+  - gray-frame-ablation
