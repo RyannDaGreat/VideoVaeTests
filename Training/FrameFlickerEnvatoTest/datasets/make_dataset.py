@@ -9,6 +9,7 @@ Run with no arguments: python datasets/make_dataset.py
 """
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -53,6 +54,8 @@ def generate_pairs(split_json, vid_dir, ref_dir, label):
     """Run transform.py on all videos in a split, WORKERS at a time."""
     with open(split_json) as f:
         entries = json.load(f)
+    if MAX_ITEMS:
+        entries = entries[:MAX_ITEMS]
 
     # Build task list, skip existing
     tasks = []
@@ -107,6 +110,8 @@ def generate_jsons():
     # Train set
     with open(ZOOM_OUT / "dataset.json") as f:
         zoom_data = json.load(f)
+    if MAX_ITEMS:
+        zoom_data = zoom_data[:MAX_ITEMS]
 
     train_entries = []
     for entry in zoom_data:
@@ -144,33 +149,76 @@ def generate_jsons():
     print(f"Test:  {len(test_entries)} entries")
 
 
+NUM_GPUS = 8
+
+
 def precompute_latents():
-    """Call LTX process_dataset.py to compute latents."""
+    """Call LTX process_dataset.py on 8 GPUs in parallel, one chunk per GPU."""
+    with open(HERE / "dataset.json") as f:
+        dataset = json.load(f)
+
     print("\n" + "=" * 70)
-    print("  Precomputing latents (LTX process_dataset.py)")
+    print(f"  Precomputing latents ({len(dataset)} videos across {NUM_GPUS} GPUs)")
     print("=" * 70 + "\n")
 
-    cmd = [
-        "uv", "run", "python", "scripts/process_dataset.py",
-        str(HERE / "dataset.json"),
-        "--resolution-buckets", "512x320x121",
-        "--model-path", "/models/LTX2/ltx-2-19b-dev.safetensors",
-        "--text-encoder-path", "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized",
-        "--reference-column", "reference_path",
-    ]
-    result = subprocess.run(cmd, cwd=str(LTX_TRAINER))
-    if result.returncode != 0:
-        raise RuntimeError(f"process_dataset.py failed with exit code {result.returncode}")
+    # Split dataset into NUM_GPUS chunks, write temporary JSONs in datasets/ dir
+    # (must be same dir as dataset.json so relative media_path values resolve correctly)
+    chunk_size = (len(dataset) + NUM_GPUS - 1) // NUM_GPUS
+    chunks = [dataset[i:i + chunk_size] for i in range(0, len(dataset), chunk_size)]
+
+    procs = []
+    chunk_files = []
+    for gpu_id, chunk in enumerate(chunks):
+        chunk_json = HERE / f".chunk_{gpu_id}.json"
+        chunk_files.append(chunk_json)
+        with open(chunk_json, "w") as f:
+            json.dump(chunk, f)
+
+        cmd = [
+            "uv", "run", "python", "scripts/process_dataset.py",
+            str(chunk_json),
+            "--resolution-buckets", "512x320x121",
+            "--model-path", "/models/LTX2/ltx-2-19b-dev.safetensors",
+            "--text-encoder-path", "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized",
+            "--reference-column", "reference_path",
+            "--output-dir", str(HERE / ".precomputed"),
+        ]
+        env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}
+        print(f"  [GPU {gpu_id}] {len(chunk)} videos")
+        procs.append((gpu_id, subprocess.Popen(cmd, cwd=str(LTX_TRAINER), env=env)))
+
+    # Wait for all
+    failed = []
+    for gpu_id, proc in procs:
+        proc.wait()
+        if proc.returncode != 0:
+            failed.append(gpu_id)
+
+    # Cleanup chunk files
+    for f in chunk_files:
+        f.unlink(missing_ok=True)
+
+    if failed:
+        raise RuntimeError(f"process_dataset.py failed on GPUs: {failed}")
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test", action="store_true", help="Limit to 24 datapoints for testing")
+    args = parser.parse_args()
+
+    global MAX_ITEMS
+    MAX_ITEMS = 24 if args.test else None
+
     t0 = time.time()
 
     for d in [VIDEOS_DIR, REF_DIR, TEST_VIDEOS_DIR, TEST_REF_DIR]:
         d.mkdir(parents=True, exist_ok=True)
 
+    mode = f"TEST MODE ({MAX_ITEMS} items)" if MAX_ITEMS else "FULL"
     print("=" * 70)
-    print("  Frame Flicker Dataset Generator")
+    print(f"  Frame Flicker Dataset Generator [{mode}]")
     print(f"  Source: {ZOOM_OUT} (reusing train/test split)")
     print(f"  Workers: {WORKERS}")
     print("=" * 70)
@@ -183,6 +231,8 @@ def main():
     elapsed = time.time() - t0
     print(f"\nDone! Total time: {elapsed / 60:.1f} minutes")
 
+
+MAX_ITEMS = None
 
 if __name__ == "__main__":
     main()
