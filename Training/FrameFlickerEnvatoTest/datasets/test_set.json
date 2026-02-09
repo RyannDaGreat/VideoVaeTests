@@ -1,0 +1,302 @@
+[
+  {
+    "video_id": "ZJBR6K7",
+    "caption": " The video features a detailed examination of an escalator's steps, focusing on the intricate design of the metal steps with parallel lines. The monochromatic color scheme of grays and blacks creates a modern and industrial atmosphere. As the video progresses, the camera captures the escalator's steps in various states of motion, with the lighting casting subtle shadows that highlight the texture and depth of the metal. The consistent theme of the escalator's design is emphasized throughout, with no branding or distinctive features to distract from the mechanical elegance. The video concludes with a close-up of the escalator's steps, showcasing the rhythmic pattern and the interplay of light and shadow.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/ZJBR6K7.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/ZJBR6K7.mp4"
+  },
+  {
+    "video_id": "J2MZ4VE",
+    "caption": " Two foxes are nestled within a narrow, earth-toned tunnel, their fur a blend of burnt orange and white. Initially, one fox lies on the ground, its head turned towards the viewer, while the other stands upright, peering out with curiosity. As moments pass, their positions slightly change; one fox lies on the ground, its head turned towards the camera, while the other stands guard at the entrance. Their expressions of curiosity and alertness remain constant, with the warm, subdued lighting casting soft shadows and highlighting the textures of their fur and the tunnel's rough walls, evoking a sense of serene vigilance in their natural habitat.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/J2MZ4VE.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/J2MZ4VE.mp4"
+  },
+  {
+    "video_id": "MMJM6TL",
+    "caption": "A woman with blonde hair, dressed in a light blue shirt and casual jeans, is seated on an orange couch, engaging in a video call with a doctor. The doctor, visible on the tablet screen, gestures with a red pen, possibly discussing medical advice or treatment options. The setting is a cozy room with a dark blue pillow, a white wall, and a potted plant, creating a relaxed atmosphere conducive to a medical consultation. Throughout the call, the woman's posture remains relaxed, indicating a comfortable and trusting interaction. The scene suggests a home environment, emphasizing the ease of healthcare communication.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/MMJM6TL.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/MMJM6TL.mp4"
+  },
+  {
+    "video_id": "RMQGSRF",
+    "caption": "A woman in a beige top and olive green trousers is in a modern, minimalist interior, engaging in a serious conversation with a young boy in a white t-shirt and blue plaid shirt. They stand close, sometimes with the woman placing her hand on the boy's shoulder, suggesting a moment of guidance or reassurance. The setting includes a wall-mounted digital display, a sleek door with a vertical LED light strip, and a white door marked with the number '0', indicating a contemporary home environment. The interaction is intimate, with the woman occasionally placing her hand on the boy's back, conveying comfort and reassurance.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/RMQGSRF.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/RMQGSRF.mp4"
+  },
+  {
+    "video_id": "MLYAZ69",
+    "caption": " The video features a series of syringes with various measurements and needle lengths, displayed against a white background. Initially, three syringes are shown, each with a different cap color and measurement markings. As the video continues, the focus remains on the syringes, with slight variations in the displayed measurements and the arrangement of the syringes. The syringes are clean and unused, suggesting they are prepared for medical use. The video concludes with a syringe labeled 'BLOOD COLLECTION' and a teal cap, indicating its purpose for blood collection.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/MLYAZ69.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/MLYAZ69.mp4"
+  },
+  {
+    "video_id": "LC2QRDB",
+    "caption": "A person kneads a large, flour-dusted ball of dough on a floured surface, their hands expertly shaping the dough into a smooth, elastic mass. The scene, set in a home kitchen, is bathed in warm, soft lighting that highlights the dusting of flour and the kneader's focused expression, evoking a sense of domesticity and the timeless ritual of bread-making. As the kneading continues, the dough becomes more pliable and elastic, with the person's hands working the dough into a more defined shape, suggesting the preparation of pizza or bread. The warm, inviting atmosphere is accentuated by the dusting of flour and the kneader's focused expression.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/LC2QRDB.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/LC2QRDB.mp4"
+  },
+  {
+    "video_id": "WP4X8VE",
+    "caption": " A young woman with a radiant smile and long black hair tied back with a green scrunchie is seen in a kitchen, wearing a pink hoodie. She is accompanied by a man in a blue hoodie featuring an American flag design, both engaging in a video recording session. They lean over a counter, smiling and interacting with each other, while a professional camera on a tripod captures their moments. The kitchen setting includes wooden cabinetry and a stainless steel sink, contributing to a warm, domestic atmosphere. Their expressions and body language suggest a friendly and joyful interaction, possibly for a vlog or social media content.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/WP4X8VE.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/WP4X8VE.mp4"
+  },
+  {
+    "video_id": "K7UNWBH",
+    "caption": " The video features a series of close-up shots of a single, freshly made popcorn kernel with a glossy, golden-brown surface, standing out against a dark background. Initially, the popcorn is surrounded by a soft focus of other kernels, creating a sense of depth. As the video continues, the focus remains on the solitary popcorn, with its vibrant yellow color and the contrast of its smooth surface against the dark backdrop highlighted. The lighting accentuates the texture and warm tones of the popcorn, giving it a three-dimensional appearance. The scene conveys a cozy, inviting atmosphere, emphasizing the popcorn's freshness and the simplicity of the moment.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/K7UNWBH.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/K7UNWBH.mp4"
+  },
+  {
+    "video_id": "GR3CHT5",
+    "caption": " A man in a plaid shirt and a woman in a brown top are working at a shared desk in a modern office, each focused on their computer screens displaying green chroma key backgrounds. The office is well-lit with natural light, featuring a brick wall, wooden accents, and contemporary furnishings. Other individuals are present in the background, indicating a collaborative environment. As time passes, the man's shirt appears to change from plaid to casual, and the woman's top alternates between brown and olive green. The office space is consistently modern, with a brick wall, wooden accents, and a large window, maintaining a professional yet relaxed atmosphere.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/GR3CHT5.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/GR3CHT5.mp4"
+  },
+  {
+    "video_id": "KBDZN5Q",
+    "caption": " Two women in turquoise blue uniforms with white scarves and matching hats stand confidently at an airport, exuding warmth and professionalism. Initially, they are seen with friendly expressions and a welcoming demeanor, suggesting they are airline staff. As moments pass, their expressions vary from warm smiles to playful gestures, indicating a range of emotions and interactions. They are positioned against an airport backdrop, with their attire and accessories, including white neck scarves and earphones, highlighting their roles as flight attendants. The scene captures their cheerful expressions and professional attire, emphasizing their readiness for service.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/KBDZN5Q.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/KBDZN5Q.mp4"
+  },
+  {
+    "video_id": "DS5ZF8F",
+    "caption": "A young woman, dressed in a blue top and a festive Santa hat adorned with red stars, is seen sitting in a dimly lit room. Her expression, one of deep contemplation or concern, remains consistent throughout the video. The room's subdued lighting casts a shadow over her, enhancing the reflective mood. The scene is simple, with no other objects or individuals present, focusing solely on her introspective state. The contrast between her holiday attire and the somber setting highlights a moment of personal reflection or worry, possibly during the holiday season.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/DS5ZF8F.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/DS5ZF8F.mp4"
+  },
+  {
+    "video_id": "JSV9PDP",
+    "caption": "A man with a slicked-back hairstyle, wearing a denim shirt and beige t-shirt, is seated on a grey couch, smiling at his black smartphone. A woman in a light blue floral dress stands behind him, placing her hands on his shoulders in a gesture of affection. They are in a modern living room with a white circular wall decor and green plants. The woman, with curly hair and hoop earrings, leans in to share a moment with the man, both smiling warmly. They continue to engage with the smartphone, their expressions joyful, in the cozy, well-lit living room.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/JSV9PDP.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/JSV9PDP.mp4"
+  },
+  {
+    "video_id": "YLRYVTL",
+    "caption": "A woman with shoulder-length blonde hair and a black leather jacket confidently holds a glass of whiskey, initially with a direct gaze and a slight smile. Her expression shifts to a more contemplative and introspective mood as she touches her head, then rests her hand behind her head, and finally, touches her cheek, suggesting deep thought or enjoyment. The warm lighting against a dark background accentuates her features and the amber liquid, creating a sophisticated and intimate atmosphere. Throughout, her attire and the setting remain consistent, emphasizing a modern, edgy style.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/YLRYVTL.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/YLRYVTL.mp4"
+  },
+  {
+    "video_id": "CG3SMTH",
+    "caption": " The video features an aerial journey over a picturesque city nestled on a river, with a mix of Ottoman, Mediterranean, and Mediterranean architectural styles. The city, surrounded by lush greenery and red-tiled roofs, is connected by an old stone bridge. As the camera moves, it reveals a bustling cityscape with people enjoying the outdoors, a restaurant with a white canopy, and a mosque with a distinctive minaret. The tranquil river reflects the sky, and the city's buildings, including a yellow building with a green roof, blend into the natural landscape. The scene is peaceful, with a soft light suggesting early morning or late afternoon.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/CG3SMTH.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/CG3SMTH.mp4"
+  },
+  {
+    "video_id": "E9HYK5G",
+    "caption": " The video features a meal of grilled meat and tomato sauce on a wooden table, with a basket of bread rolls and a small container of butter or margarine. The setting is a high-altitude alpine environment with a misty, snow-capped mountain under an overcast sky. The table is set for a leisurely outdoor dining experience, with the meal and the surrounding scenery suggesting a tranquil and adventurous atmosphere. The camera remains focused on the meal and the mountainous landscape, highlighting the contrast between the warm food and the cool, rugged terrain.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/E9HYK5G.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/E9HYK5G.mp4"
+  },
+  {
+    "video_id": "JS9KZB5",
+    "caption": " The video features a close-up view of a pile of peanuts, with a focus on their textured, salt-coated brown and tan shells. The peanuts are densely packed, and the coarse salt crystals provide a contrasting texture that suggests a crunchy exterior. As time passes, the peanuts remain in a state of being salted, with the salt crystals varying in size and distribution, enhancing their rustic and appetizing appearance. The consistent theme is the peanuts' readiness for consumption, with the salt crystals indicating a flavorful and crunchy texture.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/JS9KZB5.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/JS9KZB5.mp4"
+  },
+  {
+    "video_id": "HSGDM9K",
+    "caption": " Two ripe strawberries with vibrant red skins and fresh green leaves are submerged in a clear, effervescent liquid, likely sparkling water, against a soft pink backdrop. The strawberries are shown in various states of effervescence, with small, clear bubbles clinging to their surfaces, creating a lively and dynamic scene. The lighting accentuates the freshness and natural beauty of the strawberries, casting subtle shadows and highlighting their textures. This visual feast evokes a sense of freshness, zest, and the invigorating sensation of a refreshing drink.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/HSGDM9K.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/HSGDM9K.mp4"
+  },
+  {
+    "video_id": "5UQ985H",
+    "caption": " The video features a bakery setting where freshly baked pastries are displayed on a stainless steel tray. Initially, the tray holds golden-brown pastries with sugar granules, and a box of similar pastries is visible in the background. As time passes, the pastries are shown in various arrangements, sometimes with a clear plastic container of additional pastries, and at other times with a box of assorted pastries. The pastries have a crispy exterior and a dark filling, possibly chocolate or fruit. The scene is warmly lit, highlighting the inviting atmosphere of the bakery.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/5UQ985H.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/5UQ985H.mp4"
+  },
+  {
+    "video_id": "ESEKQ8Z",
+    "caption": "A middle-aged man with a neatly groomed beard and graying hair is seen engaging with a black smartphone, wearing a white t-shirt under a dark blue and white checkered shirt. Throughout the sequence, his expressions shift from focused to surprised, and at times he appears to be in a moment of delight or surprise. His gestures vary from holding the phone with both hands to pointing at the screen, and at one point, he gives a thumbs-up. The plain light gray background emphasizes his reactions and the interaction with the device, suggesting a casual yet thoughtful demeanor.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/ESEKQ8Z.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/ESEKQ8Z.mp4"
+  },
+  {
+    "video_id": "N5EMKD2",
+    "caption": "A woman with long blonde hair and cat-like ears sits on a pink tufted couch, dressed in a black and white gothic-style dress with ruffles and a bow tie. She appears serene and contemplative, with her eyes closed and a gentle smile. The room is decorated with a white fireplace, a classic lamp, and a small clock, creating a cozy and whimsical atmosphere. As time passes, the woman maintains her calm demeanor, and the room's details, such as the fireplace and the clock, remain consistent, emphasizing the video's calm and whimsical setting.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/N5EMKD2.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/N5EMKD2.mp4"
+  },
+  {
+    "video_id": "S7B3CBN",
+    "caption": " A bird is perched on a bare, leafless tree branch, silhouetted against a tranquil blue sky with wispy clouds. The scene is peaceful, with the bird's stillness suggesting a moment of quiet contemplation. As time passes, the bird remains in the same position, its silhouette a stark contrast to the sky. The tree's branches form a stark contrast, adding depth to the composition. The serene atmosphere is consistent throughout, with the bird's presence adding a sense of calm and contemplation to the natural setting.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/S7B3CBN.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/S7B3CBN.mp4"
+  },
+  {
+    "video_id": "2T95SY2",
+    "caption": "A woman in athletic attire, including a pink sports bra and black shorts, is seen on a lush green lawn, initially holding a pink foam roller. She then crouches, rolling the foam roller with a focused expression, surrounded by a serene garden with a wooden fence and ivy. As she continues, her attire changes slightly to a pink tank top and white visor cap, and she is seen preparing to roll a pink yoga mat on the artificial turf. The setting is tranquil, with soft lighting suggesting early morning or late afternoon, and the woman's blonde hair is tied back, emphasizing her concentration on the exercise routine.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/2T95SY2.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/2T95SY2.mp4"
+  },
+  {
+    "video_id": "697M3PC",
+    "caption": " The video features a breathtaking aerial journey over a waterfall cascading down a rugged cliff into a rocky basin, surrounded by lush greenery and a moody, cloud-filled sky. A vibrant rainbow emerges from the mist, adding a splash of color to the scene. The landscape is devoid of human presence, highlighting the untouched beauty of nature. As the camera moves, the waterfall's powerful flow and the contrasting colors of the dark volcanic rock, bright greenery, and the dynamic sky create a sense of serene majesty and the sublime power of nature.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/697M3PC.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/697M3PC.mp4"
+  },
+  {
+    "video_id": "BHYWYZU",
+    "caption": " The video features a volcanic eruption at dawn or dusk, with molten lava flowing from a central vent into a river below. The sky transitions from blue to orange, and the landscape is barren, with no vegetation or wildlife. The eruption is consistent throughout the video, with the lava's vibrant orange and red hues standing out against the dark, rugged terrain. The scene is devoid of any human presence, emphasizing the raw and untamed nature of the geological phenomenon.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/BHYWYZU.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/BHYWYZU.mp4"
+  },
+  {
+    "video_id": "NU3PUVY",
+    "caption": " The video features a serene winter scene of a classical building with a dome and clock tower, surrounded by a snow-covered cityscape. The architecture, with its red brick and beige facade, contrasts with the white snow and bare trees. The streets are quiet, with parked cars and trucks, and the absence of people and vehicles emphasizes the stillness. The scene is tranquil, with the snow highlighting the building's grandeur and the urban landscape's quietude. The video maintains a focus on the building and its surroundings, capturing the peacefulness of the snowy day.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/NU3PUVY.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/NU3PUVY.mp4"
+  },
+  {
+    "video_id": "Y56JPQF",
+    "caption": " The video features a series of monochromatic, three-dimensional Bitcoin symbols against a black background. Initially, a metallic 'B' with vertical lines is displayed, followed by a cylindrical object with a reflective surface. Next, a silver 'B' with vertical lines and a mirrored 'B' appears, creating a sense of depth. A minimalist metallic 'B' with vertical lines is then shown, and finally, a reflective silver 'B' with vertical lines and a mirrored 'B' is presented, emphasizing the cryptocurrency's modern and sophisticated design.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/Y56JPQF.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/Y56JPQF.mp4"
+  },
+  {
+    "video_id": "W7NX5DC",
+    "caption": " The video features an aerial view of a bustling cityscape with a multi-lane highway and a network of interconnected roads. Vehicles, including cars, trucks, and buses, move along the roads, surrounded by residential areas with yellow and brown buildings, green lawns, and palm trees. The city is characterized by a blend of urban development and natural elements, with a river and water bodies adding to the scenery. The infrastructure is highlighted by the presence of a circular water treatment plant and a sports stadium, indicating a balance between urban life and recreational spaces. The sky is partly cloudy, casting a soft light over the vibrant city.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/W7NX5DC.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/W7NX5DC.mp4"
+  },
+  {
+    "video_id": "RKG4JXJ",
+    "caption": " The video features a kaleidoscopic pattern with a central bright starburst radiating from a symmetrical arrangement of red and gold tiles. The pattern evolves subtly over time, maintaining its intricate design but varying in the details of the tiles' shapes and the starburst's intensity. The tiles are arranged in a circular fashion, creating a sense of depth and movement. As the pattern changes, it shifts from a three-dimensional effect to a more two-dimensional appearance, with the starburst's glow and the tiles' precision suggesting a digital creation. The design's repetitive nature and the contrasting colors evoke a mood of luxury and dynamic energy.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/RKG4JXJ.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/RKG4JXJ.mp4"
+  },
+  {
+    "video_id": "8KYNZY2",
+    "caption": "A man in a white shirt and beige pants stands behind a seated woman in a yellow sweater, pointing at a computer screen in a modern office with glass walls and contemporary furniture. They appear to be engaged in a professional discussion. Moments later, the man, now in a light beige jacket, and the woman, still in the yellow sweater, share a high-five, smiling broadly in a collaborative workspace. Finally, the man, wearing a light grey jacket, and the woman, in the yellow sweater, continue their discussion, surrounded by modern office elements like a glass partition and a sleek desk setup.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/8KYNZY2.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/8KYNZY2.mp4"
+  },
+  {
+    "video_id": "YJBG6XX",
+    "caption": " The video features a serene desert landscape at sunset, with reflective skyscrapers rising from the sandy terrain. The sun casts a golden glow, creating long shadows and highlighting the futuristic architecture against the backdrop of distant mountains. The sky transitions from orange to blue, emphasizing the solitude and stillness of the environment. As time passes, the sun's position shifts, and the cityscape's reflective surfaces gleam under the fading light, while the mountains' silhouettes become more pronounced. The scene remains devoid of life, evoking a sense of solitude and the passage of time.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/YJBG6XX.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/YJBG6XX.mp4"
+  },
+  {
+    "video_id": "ARDP49S",
+    "caption": " The video features a gynecological examination room with modern medical equipment. Initially, the room is equipped with an examination chair, a stool, an ultrasound machine, and a microscope on a wheeled stand, all under natural light. As time passes, the focus shifts to the room's cleanliness and the absence of personal items, highlighting its sterile environment. The equipment, including the examination chair with adjustable features and the mobile ultrasound machine, is consistently shown, emphasizing the room's clinical precision and the absence of any branding. The scene remains tranquil, with the room's ambiance underscored by the natural light.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/ARDP49S.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/ARDP49S.mp4"
+  },
+  {
+    "video_id": "AWMAMJU",
+    "caption": " The video features a series of animated emoji icons with a joyful expression, falling against a transparent background. Initially, the icons are shown in a simple, monochromatic style. As the video continues, the emojis are seen in various states of laughter and tears, with a dynamic array of yellow and blue colors. The scene transitions to a dark background, where the emojis appear to fall in a cascade, creating a sense of depth and movement. Text overlays indicate the video's title and format, \"Tears of Joy Emoji Falling Full HD Alpha 30FPS,\" suggesting a high-definition, animated sequence.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/AWMAMJU.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/AWMAMJU.mp4"
+  },
+  {
+    "video_id": "8V3DBTH",
+    "caption": " The video features a secluded beach with a pristine white sandy shore and clear turquoise waters. A rugged cliff with greenery and earth tones stands guard over the beach, with a solitary path suggesting human presence. As the video continues, the beach remains untouched by people, with the tranquil waters and the cliff's natural beauty highlighted by the sunlight. The scene is consistently serene, with the beach and its surroundings bathed in natural light, emphasizing the peacefulness and seclusion of the location.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/8V3DBTH.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/8V3DBTH.mp4"
+  },
+  {
+    "video_id": "SJER8VH",
+    "caption": " The video provides an aerial perspective of a bustling town, focusing on a church with a white facade and red roof, surrounded by a green lawn and a circular monument. The town is a blend of architectural styles, with red-tiled roofs and modern buildings, and is alive with vehicles and pedestrians. The streets are lined with a variety of vehicles, including cars, buses, and trucks, and the town is bordered by a river. The scene is dynamic, with the movement of people and vehicles, and the presence of greenery adds a natural touch to the urban environment.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/SJER8VH.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/SJER8VH.mp4"
+  },
+  {
+    "video_id": "345Z8GL",
+    "caption": " The video features a series of three cylindrical pedestals with geometric patterns in blue, yellow, and orange, each supporting a human skull. The skulls are suspended in mid-air against a backdrop of abstract, colorful polygons that create a surreal and dreamlike atmosphere. The scene is set in a room with a reflective floor that enhances the three-dimensional effect, and the overall mood is one of contemplation and mystery. The skulls appear to be in a state of suspension, contributing to the overall sense of depth and movement.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/345Z8GL.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/345Z8GL.mp4"
+  },
+  {
+    "video_id": "KEPCJMA",
+    "caption": " The video features a serene, snow-covered forest with a path meandering through the trees. Sunlight filters through the canopy, casting a warm glow and creating a lens flare effect. The untouched snow suggests recent snowfall, and the absence of wildlife or human activity emphasizes the solitude of the environment. As time passes, the light plays off the snow and trees, highlighting the contrast between the dark trunks and the white snow. The scene remains tranquil, with the snow-laden branches and the soft glow of the sun enhancing the peacefulness of the winter landscape.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/KEPCJMA.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/KEPCJMA.mp4"
+  },
+  {
+    "video_id": "KTN2ZUF",
+    "caption": " The video features a serene seascape at dusk, with a modern multi-story building overlooking a calm sea. Initially, the building's white facade and glass balustrades are highlighted against the backdrop of a sky transitioning from pink to blue. As time passes, the scene includes a solitary rock formation and a small boat, adding to the tranquility. The setting sun casts a soft glow, enhancing the peaceful atmosphere. The video concludes with the sun setting, the sky painted in soft pastel hues, and the sea reflecting the fading light, emphasizing the natural beauty and solitude of the coastal environment.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/KTN2ZUF.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/KTN2ZUF.mp4"
+  },
+  {
+    "video_id": "E7VBGWT",
+    "caption": "A pregnant woman with dark hair, dressed in a white top and grey sweatpants, reclines on a beige sofa, eating a colorful vegetable salad from a clear bowl. Her serene expression and closed eyes suggest contentment and relaxation. The modern kitchen setting includes a wooden dining table with fresh vegetables, a sleek black stove, and a potted plant, all under natural light. Over time, her attire changes slightly, incorporating a light blue cardigan and a blue shirt. The environment remains consistent, emphasizing a tranquil and healthy lifestyle. The woman's peaceful demeanor and the fresh ingredients around her highlight a moment of nourishment and relaxation.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/E7VBGWT.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/E7VBGWT.mp4"
+  },
+  {
+    "video_id": "Y9B3YTB",
+    "caption": " The video features a vibrant nighttime gathering in a town square with a colonial-style church as the central point. The crowd, illuminated by lights, forms a semi-circle around a stage where performers or speakers are present. The scene is lively, with people engaging in various activities, and the atmosphere is festive. The church's twin towers and central dome are highlighted, and a cross is visible above the entrance. The urban setting is complemented by street lamps and the glow of the city lights, with a watermark 'YOUTUBE.COM/VICENTE TV' indicating the source.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/Y9B3YTB.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/Y9B3YTB.mp4"
+  },
+  {
+    "video_id": "RXVQAFM",
+    "caption": "A person scoops a chunky, reddish-orange sauce from a white ceramic dish with a black rim, using a well-used spoon, indicating frequent use in a home kitchen. The sauce, speckled with visible chunks of meat and onions, is scooped into a clean, white bowl, suggesting a recent meal. The process of scooping the sauce, which appears to be a hearty, possibly tomato-based dish, is shown in detail, highlighting the sauce's thick consistency and the spoon's residue. The scene, set against a dark background, emphasizes the sauce's vibrant color and the dish's cleanliness, concluding with a small portion of the sauce on the dish's edge, indicating the end of a meal.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/RXVQAFM.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/RXVQAFM.mp4"
+  },
+  {
+    "video_id": "8S952UF",
+    "caption": " The video features the Monaco flag waving in the wind against a black background. The flag's red and white colors are vivid, with the red half symbolizing bravery and the white half representing purity. The flag's fabric ripples and folds, suggesting movement and life. Throughout the video, the flag's dynamic state and the contrast between the red and white stripes are emphasized, evoking a sense of national pride and the flag's historical significance. The consistent theme of the flag's movement and the stark contrast of its colors remain central.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/8S952UF.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/8S952UF.mp4"
+  },
+  {
+    "video_id": "VNMGVTW",
+    "caption": " The video features an aerial journey over a cityscape where nature and urbanity coexist. It starts with a view of a road surrounded by young trees and high-rise buildings, with a solitary figure walking along the path. As the camera moves, the road is shown bordered by greenery and a white wall, with a pedestrian crossing and a bridge overpass visible. The city's architecture varies from modern to traditional, with a standout building with a brown and beige facade. Vehicles and pedestrians are seen, highlighting the city's vibrant life. The scene is set against a backdrop of a clear blue sky.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/VNMGVTW.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/VNMGVTW.mp4"
+  },
+  {
+    "video_id": "Z43UTPK",
+    "caption": "A weathered wooden slide descends steeply through a dense forest, its planks worn and gap-ridden, hinting at past use. The slide, surrounded by lush greenery and under a clear blue sky, is devoid of any human presence, evoking a sense of tranquility and abandonment. As the slide ascends, it is flanked by trees with leaves transitioning to autumn colors, suggesting a seasonal change. The slide's structure, showing signs of wear and rust, indicates its age and exposure to the elements. Throughout, the scene remains serene and untouched, with the slide's solitary journey down the hill highlighted by the absence of any human activity or wildlife.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/Z43UTPK.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/Z43UTPK.mp4"
+  },
+  {
+    "video_id": "8ET4BJE",
+    "caption": "A person in a black shirt is seen preparing a cheeseburger in a home kitchen. Initially, the burger is shown with a beef patty, melted cheddar cheese, and a topping of golden brown tater tots, all drizzled with ketchup. As the preparation continues, the burger is adorned with fresh spinach leaves, and the toppings are further enhanced with a glossy red ketchup drizzle. The setting includes a wooden cutting board, a container of mayonnaise, and a bottle of ketchup, indicating an ongoing meal preparation. The scene captures the essence of a casual dining experience, focusing on the burger's assembly and the culinary process.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/8ET4BJE.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/8ET4BJE.mp4"
+  },
+  {
+    "video_id": "8B28762",
+    "caption": "A woman, wearing a white undergarment and underwear, sits on a white treatment bed with her legs extended while a professional, in a white glove, uses a handheld laser hair removal device on her right leg. The scene, set in a clinical environment with a neutral color palette, focuses on the precise and careful application of the laser, emphasizing the woman's calm demeanor. The laser emits a focused beam of light, highlighting the contrast between the warm skin and the cool white of the device. Throughout, the woman's relaxed posture and the clinical setting underscore the professional nature of the procedure.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/8B28762.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/8B28762.mp4"
+  },
+  {
+    "video_id": "A8C932S",
+    "caption": " The video features a close-up view of a delectable hamburger with a black sesame seed bun, a juicy beef patty, melted yellow cheddar cheese, crisp green lettuce, ripe red tomato slices, and tangy pickles. The burger is presented on crumpled brown parchment paper atop a wooden surface, which adds a rustic charm. The ingredients are vividly colored and arranged, highlighting the burger's appeal. As time passes, the burger remains the focal point, with the sesame seed bun and the fresh, colorful toppings consistently in view, suggesting a meal that is both visually appealing and ready to be enjoyed.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/A8C932S.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/A8C932S.mp4"
+  },
+  {
+    "video_id": "JG6KQK9",
+    "caption": " The video features a tranquil seascape at sunset with a sailboat and its white sail and yellow-striped mast gliding across calm waters. The sky transitions from orange to deep blue, with the sun's descent nearing the horizon. Other boats are visible in the distance, and a landmass is faintly discernible on the horizon. As time passes, the sailboat continues its journey, with the sky's colors deepening and the sea's ripples becoming more pronounced. The scene is peaceful, with the sailboat's movement and the changing sky creating a serene atmosphere.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/JG6KQK9.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/JG6KQK9.mp4"
+  },
+  {
+    "video_id": "VPLZGXA",
+    "caption": "A woman with dark hair and glasses, wrapped in a light grey blanket, is seated at a white desk in a well-lit room, showing signs of surprise or excitement while looking at her laptop. She is in a professional setting, indicated by a red potted plant, a notebook, and a pen on the desk. As time passes, her expression shifts to concentration and mild concern, suggesting she is engaged in a task that requires her attention. The room is consistently lit by natural light, with a view of a cityscape through the window, creating a calm and focused atmosphere.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/VPLZGXA.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/VPLZGXA.mp4"
+  },
+  {
+    "video_id": "DJ7P69P",
+    "caption": "A young Black woman with her hair in an updo and wearing hoop earrings stands against a light blue backdrop, dressed in a pink blouse and a white apron, signaling her role as a business owner or employee. She holds a green 'CLOSED' sign, conveying a message of closure to her customers. Her expression is neutral yet approachable, with a slight smile and direct gaze, suggesting she is ready to engage with passersby. Over time, her expression becomes more neutral and professional, maintaining direct eye contact with the viewer, indicating a readiness to communicate the closure of her establishment.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/DJ7P69P.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/DJ7P69P.mp4"
+  },
+  {
+    "video_id": "62PWCDX",
+    "caption": "A young woman with curly black hair and a warm, inviting smile is featured against a green screen. Initially, she appears in a light pink strapless top, her hand gently touching her chin. As time passes, her expressions and poses subtly change, maintaining a consistent theme of warmth, confidence, and approachability. She occasionally shifts her hand to her cheek, and her attire remains simple, emphasizing her natural beauty. The green screen background remains a constant, highlighting her features and the serene atmosphere. Throughout, her expressions and poses suggest a friendly and engaging demeanor.",
+    "video_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_videos/62PWCDX.mp4",
+    "reference_path": "/root/CleanCode/Github/VideoVaeTests/Training/FrameFlickerEnvatoTest/datasets/test_reference_videos/62PWCDX.mp4"
+  }
+]
