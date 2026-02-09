@@ -1,6 +1,7 @@
 inference_outputs/
 outputs/
 datasets/.precomputed/
+datasets/.chunk_*.json
 datasets/videos/
 datasets/reference_videos/
 datasets/test_videos/
