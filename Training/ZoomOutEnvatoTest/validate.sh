@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run inference on the latest checkpoint using first 4 test videos.
+# Run inference on the latest checkpoint using 8 test videos across 8 GPUs in parallel.
 # Run with no arguments: bash validate.sh
 set -euo pipefail
 
@@ -21,21 +21,26 @@ STEP_DIR="$INFERENCE_DIR/$STEP_NAME"
 mkdir -p "$STEP_DIR"
 
 echo "======================================================================"
-echo "  Validation - $STEP_NAME"
+echo "  Validation - $STEP_NAME (8 GPUs parallel)"
 echo "  LoRA:  $LATEST"
 echo "  Output: $STEP_DIR"
 echo "======================================================================"
 
-# Run first 4 test videos sequentially on GPU 0
 cd "$LTX_TRAINER"
-while IFS= read -r line; do
-    VID_ID=$(echo "$line" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['video_id'])")
-    REF=$(echo "$line" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['reference_path'])")
-    CAPTION=$(echo "$line" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['caption'])")
-    OUTPUT="$STEP_DIR/${VID_ID}.mp4"
 
-    echo ""
-    echo "Generating $VID_ID..."
+run() {
+    local GPU="$1"
+    local VID_ID="$2"
+    local REF="$3"
+    local CAPTION="$4"
+    local OUTPUT="$STEP_DIR/${VID_ID}.mp4"
+
+    if [ -f "$OUTPUT" ]; then
+        echo "[GPU $GPU] $VID_ID already exists, skipping"
+        return
+    fi
+
+    echo "[GPU $GPU] Generating $VID_ID..."
     uv run python scripts/inference.py \
         --checkpoint /models/LTX2/ltx-2-19b-dev.safetensors \
         --text-encoder-path /models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized \
@@ -45,10 +50,35 @@ while IFS= read -r line; do
         --height 320 --width 512 --num-frames 121 \
         --skip-audio \
         --include-reference-in-output \
-        --device cuda:0 \
+        --device "cuda:$GPU" \
         --output "$OUTPUT" \
-    || echo "WARNING: failed for $VID_ID"
-done < <(python3 -c "import json; [print(json.dumps(t)) for t in json.load(open('$TEST_JSON'))[:4]]")
+    && echo "[GPU $GPU] Done: $VID_ID" \
+    || echo "[GPU $GPU] FAILED: $VID_ID"
+}
 
+# Extract first 8 test videos into arrays
+eval "$(python3 -c "
+import json
+with open('$TEST_JSON') as f:
+    tests = json.load(f)[:8]
+for i, t in enumerate(tests):
+    vid = t['video_id']
+    ref = t['reference_path']
+    # Escape single quotes in caption for bash
+    cap = t['caption'].replace(\"'\", \"'\\\\''\")
+    print(f\"VID_IDS[{i}]='{vid}'\")
+    print(f\"REFS[{i}]='{ref}'\")
+    print(f\"CAPS[{i}]='{cap}'\")
+print(f'NUM_VIDEOS={len(tests)}')
+")"
+
+declare -a VID_IDS REFS CAPS
+
+# Launch all 8 in parallel, one per GPU
+for i in $(seq 0 $((NUM_VIDEOS - 1))); do
+    run "$i" "${VID_IDS[$i]}" "${REFS[$i]}" "${CAPS[$i]}" &
+done
+
+wait
 echo ""
 echo "Done. Videos in: $STEP_DIR"
