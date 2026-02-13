@@ -85,6 +85,7 @@ class GenerationConfig:
     seed: int = 42  # Random seed for reproducibility
     condition_image: Tensor | None = None  # Optional first frame image for image-to-video
     reference_video: Tensor | None = None  # For IC-LoRA: [F, C, H, W] in [0, 1]
+    reference_latent_path: str | None = None  # Pre-computed reference latent .pt file (skips VAE encoding)
     generate_audio: bool = True  # Whether to generate audio alongside video
     include_reference_in_output: bool = False  # For IC-LoRA: concatenate original reference with generated output
     cached_embeddings: CachedPromptEmbeddings | None = None  # Pre-computed text embeddings (avoids loading Gemma)
@@ -170,7 +171,7 @@ class ValidationSampler:
         self._validate_config(config)
 
         # Route to appropriate generation method
-        if config.reference_video is not None:
+        if config.reference_video is not None or config.reference_latent_path is not None:
             return self._generate_with_reference(config, device)
         return self._generate_standard(config, device)
 
@@ -241,15 +242,25 @@ class ValidationSampler:
           is concatenated side-by-side with the generated video
         """
         # Get prompt embeddings (from cache or encode on-the-fly)
+        print("  Encoding text prompts...", flush=True)
         v_ctx_pos, a_ctx_pos, v_ctx_neg, a_ctx_neg = self._get_prompt_embeddings(config, device)
 
         # Setup generator
         generator = torch.Generator(device=device).manual_seed(config.seed)
 
-        # Preprocess and encode reference video
-        ref_video_preprocessed = self._preprocess_reference_video(config)
-        ref_latent, ref_positions = self._encode_video(ref_video_preprocessed, config.frame_rate, device)
+        # Get reference latents: either from pre-computed .pt file or by encoding the video
+        if config.reference_latent_path is not None:
+            print(f"  Loading pre-computed reference latent: {config.reference_latent_path}", flush=True)
+            ref_latent, ref_positions = self._load_reference_latent(
+                config.reference_latent_path, config.frame_rate, device
+            )
+            ref_video_preprocessed = None
+        else:
+            print("  Encoding reference video...", flush=True)
+            ref_video_preprocessed = self._preprocess_reference_video(config)
+            ref_latent, ref_positions = self._encode_video(ref_video_preprocessed, config.frame_rate, device)
         ref_seq_len = ref_latent.shape[1]
+        print(f"  Reference encoded: {ref_seq_len} tokens", flush=True)
 
         # Create target video state
         video_tools = self._create_video_latent_tools(config)
@@ -283,6 +294,7 @@ class ValidationSampler:
         audio_state = noiser(latent_state=audio_clean_state, noise_scale=1.0) if audio_clean_state else None
 
         # Run denoising loop
+        print(f"  Starting denoising ({config.num_inference_steps} steps)...", flush=True)
         combined_state, audio_state = self._run_denoising(
             config=config,
             video_state=combined_state,
@@ -297,11 +309,13 @@ class ValidationSampler:
         )
 
         # Extract target portion and decode
+        print("  Denoising complete. Decoding video...", flush=True)
         target_latent = combined_state.latent[:, ref_seq_len:]
         video_output = self._decode_video_latent(target_latent, config, device)
+        print("  Video decoded.", flush=True)
 
         # Optionally concatenate original reference video side-by-side
-        if config.include_reference_in_output:
+        if config.include_reference_in_output and ref_video_preprocessed is not None:
             # Use preprocessed reference (already resized/cropped, in pixel space)
             # Convert from [B, C, F, H, W] to [C, F, H, W]
             ref_video_pixels = ref_video_preprocessed[0].cpu()
@@ -411,6 +425,32 @@ class ValidationSampler:
         # Convert to [-1, 1] range
         return ref_video * 2.0 - 1.0
 
+    def _load_reference_latent(
+        self, latent_path: str, fps: float, device: torch.device
+    ) -> tuple[Tensor, Tensor]:
+        """Load pre-computed reference latent from .pt file and compute positions.
+
+        The .pt file contains {"latents": [C, LT, LH, LW], "num_frames", "height", "width"}.
+        This matches the format produced by process_videos.py tiled_encode_video.
+        """
+        data = torch.load(latent_path, map_location=device, weights_only=True)
+        latents = data["latents"].unsqueeze(0).to(device=device, dtype=torch.bfloat16)  # [1, C, LT, LH, LW]
+        patchified = self._video_patchifier.patchify(latents)
+
+        latent_shape = VideoLatentShape(
+            batch=1,
+            channels=latents.shape[1],
+            frames=latents.shape[2],
+            height=latents.shape[3],
+            width=latents.shape[4],
+        )
+        latent_coords = self._video_patchifier.get_patch_grid_bounds(output_shape=latent_shape, device=device)
+        positions = get_pixel_coords(latent_coords, scale_factors=VIDEO_SCALE_FACTORS, causal_fix=True)
+        positions = positions.to(torch.bfloat16)
+        positions[:, 0, ...] = positions[:, 0, ...] / fps
+
+        return patchified, positions
+
     def _encode_video(self, video: Tensor, fps: float, device: torch.device) -> tuple[Tensor, Tensor]:
         """Encode video to patchified latents and compute positions.
         Args:
@@ -492,8 +532,10 @@ class ValidationSampler:
             )
 
         # Wrap transformer with X0Model to convert velocity predictions to denoised outputs
+        print("  Moving transformer to GPU...", flush=True)
         self._transformer.to(device)
         x0_model = X0Model(self._transformer)
+        print("  Transformer ready. Denoising...", flush=True)
 
         with torch.autocast(device_type=str(device).split(":")[0], dtype=torch.bfloat16):
             for step_idx, sigma in enumerate(sigmas[:-1]):
@@ -561,6 +603,7 @@ class ValidationSampler:
                     )
 
                 # Update progress
+                print(f"    step {step_idx + 1}/{len(sigmas) - 1} (σ={sigma:.4f})", flush=True)
                 if self._sampling_context is not None:
                     self._sampling_context.advance_step()
 

@@ -81,7 +81,7 @@ def load_lora_weights(transformer: torch.nn.Module, lora_path: str | Path) -> to
     Returns:
         The transformer model with LoRA weights applied
     """
-    print(f"Loading LoRA weights from {lora_path}...")
+    print(f"Loading LoRA weights from {lora_path}...", flush=True)
 
     # Load the LoRA state dict
     state_dict = load_file(str(lora_path))
@@ -115,10 +115,12 @@ def load_lora_weights(transformer: torch.nn.Module, lora_path: str | Path) -> to
         init_lora_weights=True,
     )
 
-    # Wrap the transformer with PEFT to add LoRA layers
+    # Wrap the transformer with PEFT to add LoRA layers (slow on 19B models)
+    print("  Wrapping model with LoRA adapters (this takes a few minutes for large models)...", flush=True)
     transformer = get_peft_model(transformer, lora_config)
 
     # Load the LoRA weights
+    print("  Loading LoRA state dict...", flush=True)
     base_model = transformer.get_base_model()
     set_peft_model_state_dict(base_model, state_dict)
 
@@ -244,6 +246,12 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         help="Path to reference video for video-to-video generation (IC-LoRA style)",
     )
     parser.add_argument(
+        "--reference-latent",
+        type=str,
+        default=None,
+        help="Path to pre-computed reference latent .pt file (skips VAE encoding, avoids OOM on long videos)",
+    )
+    parser.add_argument(
         "--include-reference-in-output",
         action="store_true",
         help="Include reference video side-by-side with generated output (only for V2V)",
@@ -281,8 +289,9 @@ def main() -> None:  # noqa: PLR0912, PLR0915
     args = parser.parse_args()
 
     # Validate conditioning arguments
-    if args.include_reference_in_output and args.reference_video is None:
-        parser.error("--include-reference-in-output requires --reference-video")
+    has_reference = args.reference_video is not None or args.reference_latent is not None
+    if args.include_reference_in_output and not has_reference:
+        parser.error("--include-reference-in-output requires --reference-video or --reference-latent")
 
     # Validate arguments
     generate_audio = not args.skip_audio
@@ -291,8 +300,10 @@ def main() -> None:  # noqa: PLR0912, PLR0915
     print("LTX Video/Audio Generation")
     print("=" * 80)
 
-    # Determine if we need VAE encoder (for image or video conditioning)
-    need_vae_encoder = args.condition_image is not None or args.reference_video is not None
+    # VAE encoder needed for image conditioning or non-precomputed reference video
+    need_vae_encoder = args.condition_image is not None or (
+        args.reference_video is not None and args.reference_latent is None
+    )
 
     components = load_model(
         checkpoint_path=args.checkpoint,
@@ -325,9 +336,9 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         print(f"  Loaded {reference_video.shape[0]} frames @ {ref_fps:.1f} fps")
 
     # Determine generation mode
-    if args.reference_video is not None and args.condition_image is not None:
+    if has_reference and args.condition_image is not None:
         mode = "Video-to-Video + Image Conditioning (V2V+I2V)"
-    elif args.reference_video is not None:
+    elif has_reference:
         mode = "Video-to-Video (V2V)"
     elif args.condition_image is not None:
         mode = "Image-to-Video (I2V)"
@@ -364,7 +375,7 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         print(f"Audio: Enabled (duration will match video: {video_duration:.2f}s)")
     print("=" * 80)
 
-    print(f"\nGenerating {'video + audio' if generate_audio else 'video'}...")
+    print(f"\nGenerating {'video + audio' if generate_audio else 'video'}...", flush=True)
 
     # Create generation config
     gen_config = GenerationConfig(
@@ -379,6 +390,7 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         seed=args.seed,
         condition_image=condition_image,
         reference_video=reference_video,
+        reference_latent_path=args.reference_latent,
         generate_audio=generate_audio,
         include_reference_in_output=args.include_reference_in_output,
         stg_scale=args.stg_scale,
