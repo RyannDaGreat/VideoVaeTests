@@ -37,8 +37,15 @@ TEXT_ENCODER_PATH = "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized"
 
 
 def _load_tests():
+    """Load test list from tests.json. Supports both formats:
+    - New: {"name": "suite_name", "tests": [...]}
+    - Old: [...] (bare list)
+    """
     with open(TESTS_JSON) as f:
-        return json.load(f)
+        config = json.load(f)
+    if isinstance(config, list):
+        return config
+    return config.get("tests", [])
 
 
 def _find_latest_checkpoint():
@@ -205,10 +212,24 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         checkpoint = str(_find_latest_checkpoint())
     step_name = Path(checkpoint).stem.replace("lora_weights_", "")
 
-    tests = _load_tests()
+    # Load config - top-level "name" field determines the output subfolder
+    with open(TESTS_JSON) as f:
+        config = json.load(f)
+    suite_name = config.get("name", "unnamed")
+    tests = config.get("tests", config if isinstance(config, list) else [])
+
+    # Create unique output subfolder (avoids overwriting previous runs)
+    suite_dir = Path(rp.get_unique_copy_path(str(HERE / "test_outputs" / suite_name)))
+    suite_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save a copy of the config as a record of this run
+    with open(suite_dir / "tests.json", "w") as f:
+        json.dump(config, f, indent=2)
+
     print(f"\n{'=' * 70}")
-    print(f"  Manual Tests - {step_name} ({len(tests)} tests)")
+    print(f"  {suite_name} - {step_name} ({len(tests)} tests)")
     print(f"  LoRA: {checkpoint}")
+    print(f"  Output: {suite_dir}")
     print(f"{'=' * 70}\n")
 
     active = []
@@ -216,8 +237,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         gpu_id = i % NUM_GPUS
         name = t["name"]
         latent_path = LATENT_DIR / f"{name}_ref.pt"
-        output_path = HERE / t["output_video"].replace(".mp4", f"_{step_name}.mp4")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = suite_dir / f"{name}_{step_name}.mp4"
 
         if skip_existing and output_path.exists():
             print(f"  SKIP {name}: already exists")
@@ -256,7 +276,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         p.wait()
         print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n}")
 
-    print(f"\nOutputs in: {HERE / 'test_outputs'}")
+    print(f"\nOutputs in: {suite_dir}")
 
 
 if __name__ == "__main__":
