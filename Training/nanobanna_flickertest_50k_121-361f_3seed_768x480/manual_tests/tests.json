@@ -1,0 +1,13 @@
+[
+  {
+    "name": "dogrun_snow",
+    "input_video": "raw_inputs/dogrun.mp4",
+    "first_frame": "raw_inputs/dogrun_snow_firstframe.png",
+    "output_video": "test_outputs/dogrun_snow.mp4",
+    "caption": "A Jack Russell bounds through deep powder along an icy shoreline, kicking up a spray of white snow with every stride instead of sand. With the freezing winter ocean churning in the background, he races against the biting wind, ears flapping wildly in the crisp, cold air.",
+    "num_frames": 361,
+    "keyframes": [0, 24, 48, 72, 96, 120, 144, 168, 192, 216, 240, 264, 288, 312, 336, 360],
+    "num_diffusion_steps": 30,
+    "seed": 42
+  }
+]

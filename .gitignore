@@ -33,3 +33,6 @@ untracked
 Training/ZoomOutEnvatoTest/.claude_logs
 /.claude
 /Training/FrameFlickerEnvatoTestAblation/datasets/.precomputed
+Training/nanobanna_flickertest/fresh_dataset_generation.log
+Training/nanobanna_flickertest/full_dataset_generation.log
+Training/nanobanna_flickertest/full_dataset_generation_v2.log
