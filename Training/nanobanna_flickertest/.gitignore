@@ -1,0 +1,21 @@
+# Generated dataset artifacts
+datasets/.precomputed/
+datasets/videos/
+datasets/reference_videos/
+datasets/test_videos/
+datasets/test_reference_videos/
+datasets/.chunk_*.json
+datasets/dataset.json
+datasets/test_set.json
+
+# Training outputs
+outputs/
+inference_outputs/
+debug_videos/
+
+# Scratch work
+.scratchwork/
+
+# Python cache
+__pycache__/
+*.pyc

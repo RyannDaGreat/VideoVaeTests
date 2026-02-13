@@ -1,0 +1,95 @@
+# Nanobanna Flicker IC LoRA Training Config
+# Adapted from FrameFlickerEnvatoTest for Pexels paired data
+# Based on ltx-trainer/configs/ltx2_v2v_ic_lora.yaml
+
+model:
+  model_path: "/models/LTX2/ltx-2-19b-dev.safetensors"
+  text_encoder_path: "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized"
+  training_mode: "lora"
+  load_checkpoint: null
+
+lora:
+  rank: 128
+  alpha: 128
+  dropout: 0.0
+  target_modules:
+    - "attn1.to_k"
+    - "attn1.to_q"
+    - "attn1.to_v"
+    - "attn1.to_out.0"
+    - "attn2.to_k"
+    - "attn2.to_q"
+    - "attn2.to_v"
+    - "attn2.to_out.0"
+    - "ff.net.0.proj"
+    - "ff.net.2"
+
+training_strategy:
+  name: "video_to_video"
+  first_frame_conditioning_p: 0.8  # CRITICAL: 80% first-frame conditioning (target video frame 0)
+  reference_latents_dir: "reference_latents"
+
+optimization:
+  learning_rate: 2e-5
+  steps: 100000
+  batch_size: 1
+  gradient_accumulation_steps: 1
+  max_grad_norm: 1.0
+  optimizer_type: "adamw"
+  scheduler_type: "linear"
+  scheduler_params: {}
+  enable_gradient_checkpointing: true
+
+acceleration:
+  mixed_precision_mode: "bf16"
+  quantization: null
+  # In DDP, all 8 processes load the 12B Gemma text encoder simultaneously just to extract tiny
+  # connector weights. We patched the trainer to load it on CPU to avoid OOM. But when this is
+  # true, Gemma uses device_map="auto" which overrides device="cpu" and puts it on GPU anyway,
+  # causing 8 copies to OOM. Keep false so the CPU load actually works.
+  load_text_encoder_in_8bit: false
+
+data:
+  preprocessed_data_root: "/root/CleanCode/Github/VideoVaeTests/Training/nanobanna_flickertest/datasets/.precomputed"
+  num_dataloader_workers: 2
+
+validation:
+  prompts: []
+  reference_videos: null
+  negative_prompt: "worst quality, inconsistent motion, blurry, jittery, distorted"
+  video_dims: [512, 320, 121]
+  frame_rate: 25.0
+  seed: 42
+  inference_steps: 30
+  interval: null
+  videos_per_prompt: 1
+  guidance_scale: 4.0
+  stg_scale: 1.0
+  stg_blocks: [29]
+  stg_mode: "stg_v"
+  generate_audio: false
+  skip_initial_validation: true
+  include_reference_in_output: true
+
+checkpoints:
+  interval: 50
+  keep_last_n: -1
+  precision: "bfloat16"
+
+flow_matching:
+  timestep_sampling_mode: "shifted_logit_normal"
+  timestep_sampling_params: {}
+
+hub:
+  push_to_hub: false
+  hub_model_id: null
+
+wandb:
+  enabled: true
+  project: "ltx-2-trainer"
+  entity: null
+  tags: ["ltx2", "ic-lora", "frame-flicker", "pexels", "nanobanna"]
+  log_validation_videos: true
+
+seed: 42
+output_dir: "/root/CleanCode/Github/VideoVaeTests/Training/nanobanna_flickertest/outputs"
