@@ -36,3 +36,5 @@ Training/ZoomOutEnvatoTest/.claude_logs
 Training/nanobanna_flickertest/fresh_dataset_generation.log
 Training/nanobanna_flickertest/full_dataset_generation.log
 Training/nanobanna_flickertest/full_dataset_generation_v2.log
+Training/nanobanna_flickertest_50k_121-361f_3seed_768x480/manual_tests/precomputed_latents
+Training/nanobanna_flickertest_50k_121-361f_3seed_768x480/manual_tests/test_outputs
