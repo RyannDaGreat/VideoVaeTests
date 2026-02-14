@@ -32,6 +32,7 @@ dependencies = [
     "typer>=0.15.1",
     "wandb>=0.19.11",
     "setuptools>=80.9.0",
+    "fire>=0.7.1",
 ]
 
 [dependency-groups]
