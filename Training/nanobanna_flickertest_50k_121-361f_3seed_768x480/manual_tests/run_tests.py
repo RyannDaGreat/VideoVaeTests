@@ -70,7 +70,9 @@ def generate_references():
 
         num_frames = t.get("num_frames", 121)
         keyframes = t.get("keyframes", [])
-        indicator_size = 0.2
+        target_width = t.get("width", 768)
+        target_height = t.get("height", 480)
+        FINAL_MASK_PX = 128  # fixed pulse mask width in final output
 
         video = rp.load_video(str(HERE / t["input_video"]), use_cache=False)
         keyframe_img = rp.load_image(str(HERE / t["first_frame"]), use_cache=False)
@@ -80,12 +82,13 @@ def generate_references():
         print(f"    Taking first {num_frames} of {len(video)} frames...")
         video = np.array(video[:num_frames])
 
-        # Resize both to match width=768, preserving aspect ratio
-        print(f"    Resizing to width=768...")
-        [keyframe_img], video = rp.resize_videos_to_hold([keyframe_img], video, width=768)
-        height = rp.get_image_height(keyframe_img)
-        vid_width = rp.get_image_width(keyframe_img)
-        video = rp.crop_images(video, height=height, origin="center")
+        # Resize to target width, then crop to target height
+        print(f"    Resizing to {target_width}x{target_height}...")
+        [keyframe_img], video = rp.resize_videos_to_hold([keyframe_img], video, width=target_width)
+        keyframe_img = rp.crop_images([keyframe_img], height=target_height, origin="center")[0]
+        video = rp.crop_images(video, height=target_height, origin="center")
+        height = target_height
+        vid_width = target_width
         print(f"    Result: width={vid_width}, height={height}, frames={num_frames}")
 
         print(f"    Compositing reference + pulse mask...")
@@ -102,9 +105,10 @@ def generate_references():
         if t.get("ref_first_frame", True):
             nn_frames[0] = keyframe_img
 
-        mask_width = round(indicator_size * vid_width)
-        out_height = round((1 + indicator_size) * height)
-        out_width = round((1 + indicator_size) * vid_width)
+        # Compute mask_width in composite to produce FINAL_MASK_PX after resize
+        mask_width = round(FINAL_MASK_PX * vid_width / (vid_width - FINAL_MASK_PX))
+        out_height = height + mask_width
+        out_width = vid_width + mask_width
 
         pulse_mask = np.zeros((num_frames, out_height, mask_width, 3), dtype=np.uint8)
         for ki in keyframes:
@@ -189,7 +193,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--reference-video", str(ref_path),
             "--condition-image", str(REF_DIR / f"{name}_condition.png"),
             "--prompt", t["caption"],
-            "--height", "480", "--width", "768",
+            "--height", str(t.get("height", 480)), "--width", str(t.get("width", 768)),
             "--num-frames", str(t.get("num_frames", 121)),
             "--num-inference-steps", str(t.get("num_diffusion_steps", 30)),
             "--seed", str(t.get("seed", 42)),
