@@ -1,24 +1,48 @@
 #!/usr/bin/env python3
 """Run manual tests: generate references + launch parallel inference.
 
+Reference Frame Layout
+======================
+Each reference frame is composed of three regions:
+
+    ┌────────────┬──────────────────────┐
+    │            │      PADDING         │
+    │ PULSE_MASK │  (black, fills gap)  │
+    │            ├──────────────────────┤
+    │  (fixed    │      CONTENT         │
+    │   width)   │  (video frame,       │
+    │            │   aspect preserved)  │
+    └────────────┴──────────────────────┘
+
+- PULSE_MASK: fixed-width left strip, white on keyframe frames, black otherwise.
+- CONTENT:   actual video frames (NN-filled from keyframes). Always maintains
+             the original source aspect ratio — never stretched.
+- PADDING:   black space above content to fill remaining height.
+
+The condition image (--condition-image) is frame 0 extracted from the reference
+video, so it matches the reference exactly.
+
 Usage:
-    python manual_tests/run_tests.py                         # Generate refs + run inference
-    python manual_tests/run_tests.py generate_references     # Only generate reference videos
-    python manual_tests/run_tests.py run --checkpoint PATH   # Use specific checkpoint
+    python manual_tests/run_tests.py run
+    python manual_tests/run_tests.py generate_references
+    python manual_tests/run_tests.py run --checkpoint PATH
 """
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+import cv2
 import numpy as np
 import fire
 
 sys.path.insert(0, "/root/CleanCode")
 import rp
 
+# ── Paths ────────────────────────────────────────────────────────────────────
 HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parent
 REPO_ROOT = Path(subprocess.check_output(
@@ -26,11 +50,158 @@ REPO_ROOT = Path(subprocess.check_output(
 ).decode().strip())
 LTX_TRAINER = REPO_ROOT / "LTX2" / "src" / "packages" / "ltx-trainer"
 DOWNLOAD_MODELS = REPO_ROOT / "LTX2" / "models" / "download_models.py"
-OUTPUTS_DIR = PROJECT / "outputs"
+CHECKPOINTS_DIR = PROJECT / "outputs" / "checkpoints"
 TESTS_JSON = HERE / "tests.json"
-REF_DIR = HERE / "generated_references"
+OUTPUTS_DIR = HERE / "test_outputs"
 NUM_GPUS = 8
 
+# ── Defaults ─────────────────────────────────────────────────────────────────
+BASE_WIDTH = 768
+BASE_HEIGHT = 480
+PULSE_MASK_PX = 128  # fixed pulse mask width in final output (pixels)
+
+# ── Model paths (localized) ─────────────────────────────────────────────────
+MODEL_CHECKPOINT = "/models/LTX2/ltx-2-19b-dev.safetensors"
+TEXT_ENCODER = "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Pure Functions
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def nn_fill_frames(video, keyframes, num_frames):
+    """
+    Nearest-neighbor fill: each frame gets the nearest keyframe's video content.
+
+    Pure function — no side effects.
+
+    >>> frames = np.arange(5).reshape(5, 1, 1, 1)
+    >>> kf = [0, 2, 4]
+    >>> result = nn_fill_frames(frames, kf, 5)
+    >>> list(result.reshape(-1))
+    [0, 2, 2, 4, 4]
+    """
+    kf_sorted = sorted(ki for ki in keyframes if 0 <= ki < num_frames)
+    filled = np.empty_like(video[:num_frames])
+    for i in range(num_frames):
+        idx = np.searchsorted(kf_sorted, i)
+        left = kf_sorted[max(0, idx - 1)]
+        right = kf_sorted[min(idx, len(kf_sorted) - 1)]
+        nearest = left if (i - left) <= (right - i) else right
+        filled[i] = video[nearest]
+    return filled
+
+
+def compute_content_size(target_width, target_height, mask_px, source_aspect):
+    """
+    Compute content dimensions that fit within the available space while
+    preserving the source aspect ratio.
+
+    Available space = (target_width - mask_px) wide, target_height tall.
+    Content fills as much of that as possible without stretching.
+
+    Pure function — no side effects.
+
+    >>> compute_content_size(768, 480, 128, 16/9)
+    (640, 360)
+    >>> compute_content_size(1152, 736, 128, 16/9)
+    (1024, 576)
+    """
+    avail_w = target_width - mask_px
+    avail_h = target_height
+
+    # Fit content within available space preserving aspect ratio
+    if avail_w / avail_h > source_aspect:
+        # Height-limited: content fills full height
+        content_h = avail_h
+        content_w = round(avail_h * source_aspect)
+    else:
+        # Width-limited: content fills full width
+        content_w = avail_w
+        content_h = round(avail_w / source_aspect)
+
+    return content_w, content_h
+
+
+def build_reference_frame(content, mask_value, target_width, target_height, mask_px):
+    """
+    Composite a single reference frame from content + pulse mask.
+
+    Pure function — no side effects.
+
+    Args:
+        content:  HWC uint8 array — the video content (aspect-preserved).
+        mask_value: 0 or 255 — pulse mask intensity for this frame.
+        target_width: total output width.
+        target_height: total output height.
+        mask_px: pulse mask width in pixels.
+
+    Returns:
+        HWC uint8 array of shape (target_height, target_width, 3).
+    """
+    frame = np.zeros((target_height, target_width, 3), dtype=np.uint8)
+    ch, cw = content.shape[:2]
+
+    # Content goes bottom-right of the non-mask area
+    x_offset = mask_px + (target_width - mask_px - cw)  # right-align
+    y_offset = target_height - ch  # bottom-align (padding is above)
+    frame[y_offset:y_offset + ch, x_offset:x_offset + cw] = content
+
+    # Pulse mask on the left
+    frame[:, :mask_px] = mask_value
+
+    return frame
+
+
+def make_test_name(num_frames, num_keyframes, width, height, seed, num_steps, index):
+    """
+    Generate a procedural test name encoding all parameters.
+
+    Pure function — no side effects.
+
+    >>> make_test_name(121, 64, 768, 480, 42, 30, 0)
+    '121f_64kf_768x480_30st_s42_i0'
+    """
+    return f"{num_frames}f_{num_keyframes}kf_{width}x{height}_{num_steps}st_s{seed}_i{index}"
+
+
+def make_batch_dirname(batch_title, step_name):
+    """
+    Generate a batch output directory name.
+
+    Pure function — no side effects.
+
+    >>> make_batch_dirname("kf_sweep_1152x736", "step_06300")
+    'kf_sweep_1152x736_step_06300'
+    """
+    return f"{batch_title}_{step_name}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Video I/O Helpers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def save_video_lossless(path, frames, fps=25):
+    """Save an NHWC uint8 video with lossless H.264 (CRF 0, yuv444p)."""
+    import av
+    h, w = frames[0].shape[:2]
+    with av.open(str(path), mode="w") as container:
+        stream = container.add_stream("libx264", rate=fps)
+        stream.width = w
+        stream.height = h
+        stream.pix_fmt = "yuv444p"
+        stream.options = {"crf": "0"}
+        for frame_arr in frames:
+            frame = av.VideoFrame.from_ndarray(frame_arr, format="rgb24")
+            for packet in stream.encode(frame):
+                container.mux(packet)
+        for packet in stream.encode():
+            container.mux(packet)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Core Pipeline
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def _load_tests():
     with open(TESTS_JSON) as f:
@@ -38,148 +209,127 @@ def _load_tests():
 
 
 def _find_latest_checkpoint():
-    ckpts = sorted((OUTPUTS_DIR / "checkpoints").glob("lora_weights_step_*.safetensors"))
+    ckpts = sorted(CHECKPOINTS_DIR.glob("lora_weights_step_*.safetensors"))
     if not ckpts:
-        raise FileNotFoundError(f"No checkpoints in {OUTPUTS_DIR / 'checkpoints'}")
+        raise FileNotFoundError(f"No checkpoints in {CHECKPOINTS_DIR}")
     return ckpts[-1]
 
 
-def generate_references():
+def generate_references(batch_dir=None):
     """
     Generate flickery reference videos for all tests in tests.json.
 
-    Each reference video is built by NN-filling from keyframe positions:
-      - Keyframe indices get the actual video frame from the input.
-      - Non-keyframe indices get the nearest keyframe's video frame.
-      - A pulse mask strip (left edge) is white on keyframe frames, black otherwise.
-
-    Per-test JSON options:
-      - ref_first_frame (bool, default True): Replace frame 0 of the reference
-        with the I2V condition image (first_frame) instead of the video frame.
+    Each reference video is NN-filled from keyframe positions with a fixed-width
+    pulse mask on the left. Content always preserves source aspect ratio.
     """
-    REF_DIR.mkdir(parents=True, exist_ok=True)
     tests = _load_tests()
+    ref_dir = Path(batch_dir) / "references" if batch_dir else HERE / "generated_references"
+    ref_dir.mkdir(parents=True, exist_ok=True)
     print(f"Generating references for {len(tests)} tests...")
 
     for t in tests:
         name = t["name"]
-        ref_path = REF_DIR / f"{name}_ref.mp4"
+        ref_path = ref_dir / f"{name}_ref.mp4"
+        cond_path = ref_dir / f"{name}_condition.png"
         if ref_path.exists():
             print(f"  SKIP {name}: already exists")
             continue
 
         num_frames = t.get("num_frames", 121)
         keyframes = t.get("keyframes", [])
-        target_width = t.get("width", 768)
-        target_height = t.get("height", 480)
-        FINAL_MASK_PX = 128  # fixed pulse mask width in final output
+        target_w = t.get("width", BASE_WIDTH)
+        target_h = t.get("height", BASE_HEIGHT)
 
+        # Load source video and first-frame condition image
         video = rp.load_video(str(HERE / t["input_video"]), use_cache=False)
         keyframe_img = rp.load_image(str(HERE / t["first_frame"]), use_cache=False)
         keyframe_img = rp.as_byte_image(rp.as_rgb_image(keyframe_img, copy=False), copy=False)
 
-        # Take first num_frames frames
+        # Take first N frames
         print(f"    Taking first {num_frames} of {len(video)} frames...")
         video = np.array(video[:num_frames])
 
-        # Resize to target width, then crop to target height
-        print(f"    Resizing to {target_width}x{target_height}...")
-        [keyframe_img], video = rp.resize_videos_to_hold([keyframe_img], video, width=target_width)
-        keyframe_img = rp.crop_images([keyframe_img], height=target_height, origin="center")[0]
-        video = rp.crop_images(video, height=target_height, origin="center")
-        height = target_height
-        vid_width = target_width
-        print(f"    Result: width={vid_width}, height={height}, frames={num_frames}")
+        # Compute content size preserving source aspect ratio
+        source_h, source_w = video[0].shape[:2]
+        source_aspect = source_w / source_h
+        content_w, content_h = compute_content_size(target_w, target_h, PULSE_MASK_PX, source_aspect)
+        print(f"    Target: {target_w}x{target_h}, content: {content_w}x{content_h}, mask: {PULSE_MASK_PX}px")
 
-        print(f"    Compositing reference + pulse mask...")
-        # NN-fill: each frame gets the nearest keyframe's video content.
-        # Frame 0 is always the I2V condition image (keyframe_img).
-        kf_sorted = sorted(ki for ki in keyframes if 0 <= ki < num_frames)
-        nn_frames = np.empty_like(video)
-        for i in range(num_frames):
-            idx = np.searchsorted(kf_sorted, i)
-            left = kf_sorted[max(0, idx - 1)]
-            right = kf_sorted[min(idx, len(kf_sorted) - 1)]
-            nearest = left if (i - left) <= (right - i) else right
-            nn_frames[i] = video[nearest]
+        # Resize video and keyframe_img to content size (aspect-preserving)
+        [keyframe_img], video = rp.resize_videos_to_hold([keyframe_img], video, width=content_w)
+        keyframe_img = rp.crop_images([keyframe_img], height=content_h, origin="center")[0]
+        video = rp.crop_images(video, height=content_h, origin="center")
+
+        # NN-fill from keyframes
+        print(f"    NN-filling {num_frames} frames from {len(keyframes)} keyframes...")
+        nn_frames = nn_fill_frames(video, keyframes, num_frames)
         if t.get("ref_first_frame", True):
             nn_frames[0] = keyframe_img
 
-        # Compute mask_width in composite to produce FINAL_MASK_PX after resize
-        mask_width = round(FINAL_MASK_PX * vid_width / (vid_width - FINAL_MASK_PX))
-        out_height = height + mask_width
-        out_width = vid_width + mask_width
-
-        pulse_mask = np.zeros((num_frames, out_height, mask_width, 3), dtype=np.uint8)
-        for ki in keyframes:
-            if 0 <= ki < num_frames:
-                pulse_mask[ki] = 255
-
-        ref_out = np.zeros((num_frames, out_height, out_width, 3), dtype=np.uint8)
-        ref_out[:, -height:, -vid_width:] = nn_frames
-        ref_out[:, :out_height, :mask_width] = pulse_mask
-
-        # Resize each frame with cv2 (rp.resize_videos mangles NHWC channels)
-        import cv2
+        # Build composite frames
+        print(f"    Compositing reference frames...")
         ref_out = np.stack([
-            cv2.resize(f, (vid_width, height), interpolation=cv2.INTER_AREA)
-            for f in ref_out
+            build_reference_frame(
+                content=nn_frames[i],
+                mask_value=255 if i in set(keyframes) else 0,
+                target_width=target_w,
+                target_height=target_h,
+                mask_px=PULSE_MASK_PX,
+            )
+            for i in range(num_frames)
         ])
         print(f"    ref_out: {ref_out.shape}, saving {ref_path.name} (lossless)...")
 
-        # Save with PyAV + CRF 0 to avoid H.264 artifacts on mostly-static content
-        import av
-        with av.open(str(ref_path), mode="w") as container:
-            stream = container.add_stream("libx264", rate=25)
-            stream.width = vid_width
-            stream.height = height
-            stream.pix_fmt = "yuv444p"
-            stream.options = {"crf": "0"}
-            for frame_arr in ref_out:
-                frame = av.VideoFrame.from_ndarray(frame_arr, format="rgb24")
-                for packet in stream.encode(frame):
-                    container.mux(packet)
-            for packet in stream.encode():
-                container.mux(packet)
+        save_video_lossless(ref_path, ref_out)
         print(f"  Generated: {ref_path}")
 
-        # Save frame 0 as the condition image (matches reference exactly)
-        cond_path = REF_DIR / f"{name}_condition.png"
-        import cv2
+        # Save frame 0 as condition image
         cv2.imwrite(str(cond_path), cv2.cvtColor(ref_out[0], cv2.COLOR_RGB2BGR))
         print(f"  Condition: {cond_path}")
 
     print("Done generating references.")
-
-
-def _ensure_models():
-    """Download and localize models to /models/LTX2/ if not already present."""
-    print("Ensuring models are downloaded and localized...")
-    subprocess.run([sys.executable, str(DOWNLOAD_MODELS)], check=True)
+    return ref_dir
 
 
 def run(checkpoint: str = None, skip_existing: bool = False):
-    """Generate references then run inference on all tests."""
-    _ensure_models()
-    generate_references()
+    """Generate references, then run inference on all tests. Saves to archival folder."""
+    # Ensure models are localized
+    print("Ensuring models are downloaded and localized...")
+    subprocess.run([sys.executable, str(DOWNLOAD_MODELS)], check=True)
 
     if checkpoint is None:
         checkpoint = str(_find_latest_checkpoint())
     step_name = Path(checkpoint).stem.replace("lora_weights_", "")
 
     tests = _load_tests()
+
+    # Determine batch title from JSON or derive from first test
+    batch_title = tests[0].get("batch_title", "manual_tests") if tests else "manual_tests"
+
+    # Create archival output directory
+    batch_dirname = make_batch_dirname(batch_title, step_name)
+    batch_dir = OUTPUTS_DIR / batch_dirname
+    batch_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy tests.json into the batch folder for archival
+    shutil.copy2(str(TESTS_JSON), str(batch_dir / "tests.json"))
+
+    # Generate references into the batch folder
+    ref_dir = generate_references(batch_dir=batch_dir)
+
     print(f"\n{'=' * 70}")
     print(f"  Manual Tests - {step_name} ({len(tests)} tests)")
     print(f"  LoRA: {checkpoint}")
+    print(f"  Output: {batch_dir}")
     print(f"{'=' * 70}\n")
 
     active = []
     for i, t in enumerate(tests):
         gpu_id = i % NUM_GPUS
         name = t["name"]
-        ref_path = REF_DIR / f"{name}_ref.mp4"
-        output_path = HERE / t["output_video"].replace(".mp4", f"_{step_name}.mp4")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        ref_path = ref_dir / f"{name}_ref.mp4"
+        cond_path = ref_dir / f"{name}_condition.png"
+        output_path = batch_dir / f"{name}_{step_name}.mp4"
 
         if skip_existing and output_path.exists():
             print(f"  SKIP {name}: already exists")
@@ -187,13 +337,14 @@ def run(checkpoint: str = None, skip_existing: bool = False):
 
         cmd = [
             "uv", "run", "python", "scripts/inference.py",
-            "--checkpoint", "/models/LTX2/ltx-2-19b-dev.safetensors",
-            "--text-encoder-path", "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized",
+            "--checkpoint", MODEL_CHECKPOINT,
+            "--text-encoder-path", TEXT_ENCODER,
             "--lora-path", checkpoint,
             "--reference-video", str(ref_path),
-            "--condition-image", str(REF_DIR / f"{name}_condition.png"),
+            "--condition-image", str(cond_path),
             "--prompt", t["caption"],
-            "--height", str(t.get("height", 480)), "--width", str(t.get("width", 768)),
+            "--height", str(t.get("height", BASE_HEIGHT)),
+            "--width", str(t.get("width", BASE_WIDTH)),
             "--num-frames", str(t.get("num_frames", 121)),
             "--num-inference-steps", str(t.get("num_diffusion_steps", 30)),
             "--seed", str(t.get("seed", 42)),
@@ -217,7 +368,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         p.wait()
         print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n}")
 
-    print(f"\nOutputs in: {HERE / 'test_outputs'}")
+    print(f"\nOutputs in: {batch_dir}")
 
 
 if __name__ == "__main__":
