@@ -33,6 +33,7 @@ dependencies = [
     "wandb>=0.19.11",
     "setuptools>=80.9.0",
     "fire>=0.7.1",
+	"rp",
 ]
 
 [dependency-groups]
