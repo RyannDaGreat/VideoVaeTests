@@ -25,6 +25,7 @@ REPO_ROOT = Path(subprocess.check_output(
     ["git", "rev-parse", "--show-toplevel"], cwd=str(PROJECT),
 ).decode().strip())
 LTX_TRAINER = REPO_ROOT / "LTX2" / "src" / "packages" / "ltx-trainer"
+DOWNLOAD_MODELS = REPO_ROOT / "LTX2" / "models" / "download_models.py"
 OUTPUTS_DIR = PROJECT / "outputs"
 TESTS_JSON = HERE / "tests.json"
 REF_DIR = HERE / "generated_references"
@@ -44,7 +45,18 @@ def _find_latest_checkpoint():
 
 
 def generate_references():
-    """Generate flickery reference videos for all tests in tests.json."""
+    """
+    Generate flickery reference videos for all tests in tests.json.
+
+    Each reference video is built by NN-filling from keyframe positions:
+      - Keyframe indices get the actual video frame from the input.
+      - Non-keyframe indices get the nearest keyframe's video frame.
+      - A pulse mask strip (left edge) is white on keyframe frames, black otherwise.
+
+    Per-test JSON options:
+      - ref_first_frame (bool, default True): Replace frame 0 of the reference
+        with the I2V condition image (first_frame) instead of the video frame.
+    """
     REF_DIR.mkdir(parents=True, exist_ok=True)
     tests = _load_tests()
     print(f"Generating references for {len(tests)} tests...")
@@ -64,10 +76,9 @@ def generate_references():
         keyframe_img = rp.load_image(str(HERE / t["first_frame"]), use_cache=False)
         keyframe_img = rp.as_byte_image(rp.as_rgb_image(keyframe_img, copy=False), copy=False)
 
-        # Subsample video to target frame count
-        print(f"    Subsampling {len(video)} frames -> {num_frames}...")
-        indices = np.linspace(0, len(video) - 1, num_frames, dtype=int)
-        video = np.array([video[i] for i in indices])
+        # Take first num_frames frames
+        print(f"    Taking first {num_frames} of {len(video)} frames...")
+        video = np.array(video[:num_frames])
 
         # Resize both to match width=768, preserving aspect ratio
         print(f"    Resizing to width=768...")
@@ -78,7 +89,18 @@ def generate_references():
         print(f"    Result: width={vid_width}, height={height}, frames={num_frames}")
 
         print(f"    Compositing reference + pulse mask...")
-        nn_frames = np.stack([keyframe_img] * num_frames)
+        # NN-fill: each frame gets the nearest keyframe's video content.
+        # Frame 0 is always the I2V condition image (keyframe_img).
+        kf_sorted = sorted(ki for ki in keyframes if 0 <= ki < num_frames)
+        nn_frames = np.empty_like(video)
+        for i in range(num_frames):
+            idx = np.searchsorted(kf_sorted, i)
+            left = kf_sorted[max(0, idx - 1)]
+            right = kf_sorted[min(idx, len(kf_sorted) - 1)]
+            nearest = left if (i - left) <= (right - i) else right
+            nn_frames[i] = video[nearest]
+        if t.get("ref_first_frame", True):
+            nn_frames[0] = keyframe_img
 
         mask_width = round(indicator_size * vid_width)
         out_height = round((1 + indicator_size) * height)
@@ -117,11 +139,24 @@ def generate_references():
                 container.mux(packet)
         print(f"  Generated: {ref_path}")
 
+        # Save frame 0 as the condition image (matches reference exactly)
+        cond_path = REF_DIR / f"{name}_condition.png"
+        import cv2
+        cv2.imwrite(str(cond_path), cv2.cvtColor(ref_out[0], cv2.COLOR_RGB2BGR))
+        print(f"  Condition: {cond_path}")
+
     print("Done generating references.")
+
+
+def _ensure_models():
+    """Download and localize models to /models/LTX2/ if not already present."""
+    print("Ensuring models are downloaded and localized...")
+    subprocess.run([sys.executable, str(DOWNLOAD_MODELS)], check=True)
 
 
 def run(checkpoint: str = None, skip_existing: bool = False):
     """Generate references then run inference on all tests."""
+    _ensure_models()
     generate_references()
 
     if checkpoint is None:
@@ -152,6 +187,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--text-encoder-path", "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized",
             "--lora-path", checkpoint,
             "--reference-video", str(ref_path),
+            "--condition-image", str(REF_DIR / f"{name}_condition.png"),
             "--prompt", t["caption"],
             "--height", "480", "--width", "768",
             "--num-frames", str(t.get("num_frames", 121)),
