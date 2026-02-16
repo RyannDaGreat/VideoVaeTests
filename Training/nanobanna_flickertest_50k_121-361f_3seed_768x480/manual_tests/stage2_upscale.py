@@ -1,233 +1,318 @@
 #!/usr/bin/env python3
-"""Stage 2 upscaling: takes a stage 1 video and produces a 2x resolution version.
+"""Stage 2 upscaling from saved raw latent (no re-encoding round trip).
 
-Flow:
-  1. Load stage 1 video → encode to latent with VAE encoder (tiled)
-  2. Upsample latent 2x using spatial upsampler
-  3. Add noise at distilled sigma level, denoise with distilled LoRA (3 steps)
-  4. Decode with tiled VAE decoder at 2x resolution
-  5. Save output video
+Takes a raw patchified latent saved by inference.py --save-latent, unpatchifies it,
+upsamples 2x with the spatial upsampler, refines with distilled LoRA (3 steps),
+and decodes to video.
 
-Usage:
-    python stage2_upscale.py \
-        --input stage1_output.mp4 \
-        --output stage2_output.mp4 \
-        --device cuda:0 \
-        --prompt "..." \
-        --seed 42
+This follows the exact TI2VidTwoStagesPipeline pattern:
+  raw latent → unpatchify → upsample 2x → denoise (3 distilled steps) → decode
+
+Subprocess isolation: text encoding and VAE decoding run as subcommands of this
+same script (via Fire) in separate processes, avoiding Gemma/VAE memory leaks.
+
+Commands:
+    upscale       Full pipeline: text encode → upsample → denoise → decode
+    encode_text   (subprocess) Encode text prompt, save embeddings to .pt
+    decode_latent (subprocess) Decode a spatial latent .pt to video .mp4
 """
 
+import subprocess as sp
 import sys
+import tempfile
 from pathlib import Path
 
 import fire
 import torch
-from einops import rearrange
 
 sys.path.insert(0, "/root/CleanCode")
 
 # ── Model paths ─────────────────────────────────────────────────────────────
 MODEL_CHECKPOINT = "/models/LTX2/ltx-2-19b-dev.safetensors"
-TEXT_ENCODER = "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized"
+GEMMA_ROOT = "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized"
 SPATIAL_UPSAMPLER = "/models/LTX2/ltx-2-spatial-upscaler-x2-1.0.safetensors"
-DISTILLED_LORA = "/models/LTX2/ltx-2-19b-distilled-lora-384.safetensors"
+DISTILLED_LORA = "/models/LTX2/ltx-2-19b-distilled-lora-resized_dynamic_fro095_avg_rank_242_bf16.safetensors"
+DETAILER_LORA = "/models/LTX2/ltx-2-19b-ic-lora-detailer.safetensors"
 
-# Stage 2 uses only 4 sigma values (3 denoising steps)
 STAGE_2_DISTILLED_SIGMA_VALUES = [0.909375, 0.725, 0.421875, 0.0]
+
+SELF = str(Path(__file__).resolve())
+LTX_TRAINER_DIR = str(Path(__file__).resolve().parents[3] / "LTX2" / "src" / "packages" / "ltx-trainer")
+
+
+def _mem(label=""):
+    """Print GPU memory usage. Pure diagnostic, no side effects on state."""
+    if torch.cuda.is_available():
+        alloc = torch.cuda.memory_allocated(0)
+        free, _ = torch.cuda.mem_get_info(0)
+        print(f"    [MEM {label}] Allocated: {alloc/1e9:.1f} GiB, Free: {free/1e9:.1f} GiB")
+
+
+def _cleanup():
+    """Aggressively free GPU memory. No side effects beyond cache clearing."""
+    import gc
+    gc.collect()
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Subprocess subcommands (invoked by upscale via recursive calls to this script)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def encode_text(prompt: str, output: str, device: str = "cuda:0"):
+    """
+    Encode a text prompt and save embeddings to a .pt file.
+
+    Runs as a subprocess to avoid Gemma's 63.9 GiB GPU memory leak.
+    The subprocess exits cleanly, releasing all GPU memory.
+    """
+    from ltx_core.text_encoders.gemma import encode_text as _encode_text
+    from ltx_pipelines.utils import ModelLedger
+
+    ledger = ModelLedger(
+        dtype=torch.bfloat16, device=torch.device(device),
+        checkpoint_path=MODEL_CHECKPOINT, gemma_root_path=GEMMA_ROOT,
+    )
+    te = ledger.text_encoder()
+    (v_ctx, a_ctx), _ = _encode_text(te, prompts=[prompt, ""])
+    torch.save({"v": v_ctx.cpu(), "a": a_ctx.cpu()}, output)
+    print(f"Text encoding saved to {output}")
+
+
+def decode_latent(
+    latent_path: str,
+    output: str,
+    device: str = "cuda:0",
+    seed: int = 42,
+    frame_rate: float = 25.0,
+):
+    """
+    Decode a spatial latent .pt file to an .mp4 video.
+
+    Runs as a subprocess to avoid VAE decoder memory leaks.
+    The subprocess exits cleanly, releasing all GPU memory.
+    """
+    import rp
+    from ltx_core.model.video_vae import TilingConfig, decode_video as vae_decode_video
+    from ltx_pipelines.utils import ModelLedger
+
+    torch_device = torch.device(device)
+    latent = torch.load(latent_path, weights_only=True).to(torch_device)
+    print(f"Loaded latent: {latent.shape}")
+
+    ledger = ModelLedger(dtype=torch.bfloat16, device=torch_device, checkpoint_path=MODEL_CHECKPOINT)
+    decoder = ledger.video_decoder()
+    print(f"Decoder loaded, GPU: {torch.cuda.memory_allocated(0)/1e9:.1f} GiB")
+
+    tiling_config = TilingConfig.default()
+    generator = torch.Generator(device=torch_device).manual_seed(seed)
+    with torch.inference_mode():
+        chunks = list(vae_decode_video(latent, decoder, tiling_config, generator))
+        video = torch.cat(chunks, dim=0)
+    video_np = rp.as_numpy_array(video.cpu())
+    rp.save_video_mp4(video_np, output, framerate=frame_rate, video_bitrate=20000000)
+    print(f"Decode + save complete: {output}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Main pipeline
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _run_subprocess(cmd):
+    """
+    Run a subcommand of this script in a child process.
+
+    Pure function — child process exits, fully releasing GPU memory.
+    """
+    full_cmd = ["uv", "run", "python", SELF] + cmd
+    result = sp.run(full_cmd, cwd=LTX_TRAINER_DIR)
+    if result.returncode != 0:
+        raise RuntimeError(f"Subprocess failed: {' '.join(cmd[:2])}")
 
 
 def upscale(
-    input: str,
+    latent_path: str,
     output: str,
     prompt: str,
     device: str = "cuda:0",
     seed: int = 42,
-    lora_path: str = None,
-    num_frames: int = 121,
     frame_rate: float = 25.0,
+    lora_path: str = None,
 ):
     """
-    Run stage 2 upscaling on a stage 1 video.
+    Stage 2 upscaling from a saved raw patchified latent.
 
-    Args:
-        input: Path to stage 1 output video
-        output: Path to save stage 2 upscaled video
-        prompt: Text prompt (same as stage 1)
-        device: CUDA device
-        seed: Random seed
-        lora_path: Path to trained LoRA (applied on top of distilled LoRA)
-        num_frames: Number of frames
-        frame_rate: Frame rate
+    Flow (matching TI2VidTwoStagesPipeline exactly):
+      1. Encode text in subprocess (Gemma leaks 63.9 GiB otherwise)
+      2. Load + unpatchify latent → upsample 2x with spatial upsampler
+      3. Denoise 3 distilled steps with simple_denoising_func (no CFG)
+      4. Save denoised latent (so decode can be retried without redoing diffusion)
+      5. Decode to video in subprocess (VAE decoder also leaks)
+
+    LoRAs for stage 2: distilled + detailer (+ optionally trained LoRA).
     """
     from ltx_core.components.diffusion_steps import EulerDiffusionStep
     from ltx_core.components.noisers import GaussianNoiser
-    from ltx_core.components.schedulers import LTX2Scheduler
-    from ltx_core.loader.primitives import LoraPathStrengthAndSDOps
+    from ltx_core.components.patchifiers import VideoLatentPatchifier
+    from ltx_core.loader import LTXV_LORA_COMFY_RENAMING_MAP, LoraPathStrengthAndSDOps
     from ltx_core.model.upsampler import upsample_video
-    from ltx_core.model.video_vae import TilingConfig
-    from ltx_core.model.video_vae import decode_video as vae_decode_video
-    from ltx_core.text_encoders.gemma import encode_text
+    from ltx_core.types import VideoLatentShape, VideoPixelShape
     from ltx_pipelines.utils import ModelLedger
-    from ltx_pipelines.utils.helpers import cleanup_memory, euler_denoising_loop, simple_denoising_func
-    from ltx_pipelines.utils.media_io import encode_video
+    from ltx_pipelines.utils.helpers import (
+        cleanup_memory,
+        denoise_audio_video,
+        euler_denoising_loop,
+        simple_denoising_func,
+    )
     from ltx_pipelines.utils.types import PipelineComponents
-
-    from ltx_trainer.video_utils import read_video
 
     torch_device = torch.device(device)
     dtype = torch.bfloat16
+    patchifier = VideoLatentPatchifier(patch_size=1)
 
-    print(f"Stage 2 upscaling: {input} -> {output}")
-    print(f"  Device: {device}, Seed: {seed}")
+    # ── Phase 1: Encode text in subprocess ──────────────────────────────
+    print("\n[1/4] Encoding text (subprocess)...")
+    embeddings_path = tempfile.mktemp(suffix=".pt")
+    _run_subprocess(["encode_text", "--prompt", prompt, "--output", embeddings_path, "--device", device])
+    embeddings = torch.load(embeddings_path, weights_only=True)
+    v_ctx = embeddings["v"].to(torch_device)
+    a_ctx = embeddings["a"].to(torch_device)
+    Path(embeddings_path).unlink(missing_ok=True)
+    _mem("after text encode subprocess")
+    print(f"  Text encoded: video {v_ctx.shape}, audio {a_ctx.shape}")
 
-    # Build LoRA list: distilled LoRA + optionally trained LoRA
+    # ── Phase 2: Load latent, unpatchify, upsample 2x ──────────────────
+    print("\n[2/4] Loading latent + upsampling 2x...")
+    data = torch.load(latent_path, weights_only=True)
+    patchified_latent = data["latent"]
+    s1_height = data["height"]
+    s1_width = data["width"]
+    num_frames = data["num_frames"]
+
+    # Unpatchify from (B, N, C) to spatial (B, C, LT, LH, LW)
+    lt = (num_frames - 1) // 8 + 1
+    lh = s1_height // 32
+    lw = s1_width // 32
+    latent_shape = VideoLatentShape(batch=1, channels=128, frames=lt, height=lh, width=lw)
+    spatial_latent = patchifier.unpatchify(patchified_latent, output_shape=latent_shape)
+    spatial_latent = spatial_latent.to(device=torch_device, dtype=dtype)
+    print(f"  Unpatchified latent: {spatial_latent.shape} ({s1_width}x{s1_height})")
+
+    target_h = s1_height * 2
+    target_w = s1_width * 2
+    print(f"  Target: {target_w}x{target_h}")
+
+    # Load video encoder + upsampler (DummyRegistry: loads only relevant weights)
+    up_ledger = ModelLedger(
+        dtype=dtype, device=torch_device,
+        checkpoint_path=MODEL_CHECKPOINT,
+        spatial_upsampler_path=SPATIAL_UPSAMPLER,
+    )
+    video_encoder = up_ledger.video_encoder()
+    upsampler = up_ledger.spatial_upsampler()
+
+    with torch.inference_mode():
+        upscaled_latent = upsample_video(
+            latent=spatial_latent,
+            video_encoder=video_encoder,
+            upsampler=upsampler,
+        )
+    print(f"  Upscaled latent: {upscaled_latent.shape}")
+
+    del video_encoder, upsampler, up_ledger, spatial_latent
+    _cleanup()
+    _mem("after upsample")
+
+    # ── Phase 3: Denoise 3 distilled steps ──────────────────────────────
+    print(f"\n[3/4] Stage 2 denoising at {target_w}x{target_h} (3 steps)...")
+
+    # Build LoRA list: distilled + detailer (+ optionally trained LoRA)
     loras = []
     if lora_path:
-        from ltx_core.loader.primitives import LoraPathStrengthAndSDOps as LoraSpec
-        loras.append((lora_path, 1.0, None))
-    # Distilled LoRA for stage 2
-    distilled_lora = [(DISTILLED_LORA, 1.0, None)]
+        loras.append(LoraPathStrengthAndSDOps(lora_path, 1.0, LTXV_LORA_COMFY_RENAMING_MAP))
+    loras.append(LoraPathStrengthAndSDOps(DISTILLED_LORA, 1.0, LTXV_LORA_COMFY_RENAMING_MAP))
+    loras.append(LoraPathStrengthAndSDOps(DETAILER_LORA, 1.0, LTXV_LORA_COMFY_RENAMING_MAP))
 
-    # Create model ledger for stage 2
-    print("  Building model ledger...")
-    stage_2_ledger = ModelLedger(
-        dtype=dtype,
-        device=torch_device,
+    xf_ledger = ModelLedger(
+        dtype=dtype, device=torch_device,
         checkpoint_path=MODEL_CHECKPOINT,
-        gemma_root_path=TEXT_ENCODER,
-        spatial_upsampler_path=SPATIAL_UPSAMPLER,
-        loras=tuple(loras),
+        loras=loras,
     )
-    # Add distilled LoRA on top
-    stage_2_ledger = stage_2_ledger.with_loras(loras=tuple(distilled_lora))
-
-    pipeline_components = PipelineComponents(dtype=dtype, device=torch_device)
+    transformer = xf_ledger.transformer()
+    _mem("after transformer load")
 
     generator = torch.Generator(device=torch_device).manual_seed(seed)
     noiser = GaussianNoiser(generator=generator)
     stepper = EulerDiffusionStep()
-
-    # Step 1: Encode text
-    print("  Encoding text...")
-    text_encoder = stage_2_ledger.text_encoder()
-    (v_context_p, a_context_p), _ = encode_text(text_encoder, prompts=[prompt, ""])
-    del text_encoder
-    torch.cuda.synchronize()
-    cleanup_memory()
-
-    # Step 2: Load and encode stage 1 video to latent
-    print(f"  Loading stage 1 video: {input}")
-    video_frames, fps = read_video(input, max_frames=num_frames)
-    print(f"    Loaded {video_frames.shape[0]} frames")
-
-    video_encoder = stage_2_ledger.video_encoder()
-
-    # Convert to [B, C, F, H, W] in [-1, 1]
-    video_tensor = rearrange(video_frames, "T C H W -> 1 C T H W")
-    # Trim to valid frame count (k*8 + 1)
-    valid_frames = (video_tensor.shape[2] - 1) // 8 * 8 + 1
-    video_tensor = video_tensor[:, :, :valid_frames]
-    video_tensor = (video_tensor * 2.0 - 1.0).to(device=torch_device, dtype=torch.float32)
-
-    print(f"  Encoding to latent space ({video_tensor.shape})...")
-    video_encoder.to(torch_device)
-    with torch.autocast(device_type="cuda", dtype=dtype):
-        stage1_latent = video_encoder(video_tensor)
-    print(f"    Latent shape: {stage1_latent.shape}")
-
-    # Step 3: Upsample latent 2x
-    print("  Upsampling latent 2x...")
-    upsampler = stage_2_ledger.spatial_upsampler()
-    upscaled_latent = upsample_video(
-        latent=stage1_latent,
-        video_encoder=video_encoder,
-        upsampler=upsampler,
-    )
-    print(f"    Upscaled latent shape: {upscaled_latent.shape}")
-    del upsampler
-    video_encoder.to("cpu")
-    torch.cuda.synchronize()
-    cleanup_memory()
-
-    # Step 4: Denoise at 2x resolution with distilled sigmas
-    print("  Loading transformer for stage 2 denoising...")
-    transformer = stage_2_ledger.transformer()
-
+    components = PipelineComponents(dtype=dtype, device=torch_device)
     distilled_sigmas = torch.Tensor(STAGE_2_DISTILLED_SIGMA_VALUES).to(torch_device)
 
-    # Compute target resolution (2x stage 1)
-    _, _, lt, lh, lw = upscaled_latent.shape
-    # Latent to pixel: height = lh * 32, width = lw * 32, frames = (lt - 1) * 8 + 1
-    target_h = lh * 32
-    target_w = lw * 32
-    target_frames = (lt - 1) * 8 + 1
-    print(f"    Stage 2 resolution: {target_w}x{target_h}, {target_frames} frames")
-
-    from ltx_core.types import LatentState, VideoPixelShape
-    from ltx_pipelines.utils.helpers import denoise_audio_video
-
-    stage_2_output_shape = VideoPixelShape(
-        batch=1, frames=target_frames, width=target_w, height=target_h, fps=frame_rate,
-    )
-
-    def second_stage_denoising_loop(sigmas, video_state, audio_state, stepper):
+    def stage2_loop(sigmas, video_state, audio_state, stepper):
+        """Stage 2 denoising: simple_denoising_func (no CFG), matching official pipeline."""
         return euler_denoising_loop(
             sigmas=sigmas,
             video_state=video_state,
             audio_state=audio_state,
             stepper=stepper,
             denoise_fn=simple_denoising_func(
-                video_context=v_context_p,
-                audio_context=a_context_p,
+                video_context=v_ctx,
+                audio_context=a_ctx,
                 transformer=transformer,
             ),
         )
 
-    print("  Running stage 2 denoising (3 steps)...")
-    video_state, audio_state = denoise_audio_video(
-        output_shape=stage_2_output_shape,
-        conditionings=[],
-        noiser=noiser,
-        sigmas=distilled_sigmas,
-        stepper=stepper,
-        denoising_loop_fn=second_stage_denoising_loop,
-        components=pipeline_components,
-        dtype=dtype,
-        device=torch_device,
-        noise_scale=distilled_sigmas[0],
-        initial_video_latent=upscaled_latent,
+    stage_2_shape = VideoPixelShape(
+        batch=1, frames=num_frames, width=target_w, height=target_h, fps=frame_rate,
     )
 
-    del transformer
-    torch.cuda.synchronize()
-    cleanup_memory()
+    with torch.inference_mode():
+        video_state, audio_state = denoise_audio_video(
+            output_shape=stage_2_shape,
+            conditionings=[],
+            noiser=noiser,
+            sigmas=distilled_sigmas,
+            stepper=stepper,
+            denoising_loop_fn=stage2_loop,
+            components=components,
+            dtype=dtype,
+            device=torch_device,
+            noise_scale=distilled_sigmas[0],
+            initial_video_latent=upscaled_latent,
+        )
 
-    # Step 5: Decode at 2x resolution
-    print("  Decoding stage 2 video...")
-    tiling_config = TilingConfig.default()
-    video_decoder = stage_2_ledger.video_decoder()
-    decoded_video = vae_decode_video(
-        video_state.latent, video_decoder, tiling_config, generator,
-    )
+    print(f"  Denoising complete. Latent shape: {video_state.latent.shape}")
+    del transformer, upscaled_latent, xf_ledger
+    _cleanup()
+    _mem("after denoise")
 
-    del video_decoder
-    torch.cuda.synchronize()
-    cleanup_memory()
+    # Save denoised latent so decode can be retried without redoing diffusion
+    stage2_latent_path = str(Path(output).with_suffix(".pt"))
+    torch.save(video_state.latent.cpu(), stage2_latent_path)
+    print(f"  Saved stage 2 latent: {stage2_latent_path}")
+    del video_state, audio_state
+    _cleanup()
 
-    # Step 6: Save
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    print(f"  Saving stage 2 video to {output_path}...")
-    encode_video(
-        video=decoded_video,
-        fps=frame_rate,
-        audio=None,
-        audio_sample_rate=None,
-        output_path=str(output_path),
-        video_chunks_number=1,
-    )
-    print(f"  Stage 2 complete: {output_path}")
+    # ── Phase 4: Decode in subprocess ───────────────────────────────────
+    print(f"\n[4/4] Decoding stage 2 video (subprocess)...")
+    Path(output).parent.mkdir(parents=True, exist_ok=True)
+    _run_subprocess([
+        "decode_latent",
+        "--latent-path", stage2_latent_path,
+        "--output", output,
+        "--device", device,
+        "--seed", str(seed),
+        "--frame-rate", str(frame_rate),
+    ])
+
+    print(f"\n  Stage 2 complete: {output} ({target_w}x{target_h})")
 
 
 if __name__ == "__main__":
-    fire.Fire(upscale)
+    fire.Fire({
+        "upscale": upscale,
+        "encode_text": encode_text,
+        "decode_latent": decode_latent,
+    })

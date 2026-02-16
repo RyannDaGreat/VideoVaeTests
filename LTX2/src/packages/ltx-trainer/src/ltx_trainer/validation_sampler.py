@@ -94,6 +94,7 @@ class GenerationConfig:
     stg_mode: Literal["stg_av", "stg_v"] = "stg_av"  # STG mode: "stg_av" (audio+video) or "stg_v" (video only)
     # Tiled decoding config: None = use defaults (enabled), False = disable, or TiledDecodingConfig for custom settings
     tiled_decoding: TiledDecodingConfig | Literal[False] | None = None
+    save_latent_path: str | None = None  # If set, save raw patchified latent to .pt before decoding
 
     def __post_init__(self) -> None:
         """Apply default tiled decoding config if not provided."""
@@ -311,6 +312,20 @@ class ValidationSampler:
         # Extract target portion and decode
         print("  Denoising complete. Decoding video...", flush=True)
         target_latent = combined_state.latent[:, ref_seq_len:]
+
+        # Save raw patchified latent before decode (for stage 2 upscaling)
+        if config.save_latent_path:
+            import torch as _torch
+            from pathlib import Path as _Path
+            _Path(config.save_latent_path).parent.mkdir(parents=True, exist_ok=True)
+            _torch.save({
+                "latent": target_latent.cpu(),
+                "num_frames": config.num_frames,
+                "height": config.height,
+                "width": config.width,
+            }, config.save_latent_path)
+            print(f"  Saved raw latent: {config.save_latent_path}", flush=True)
+
         video_output = self._decode_video_latent(target_latent, config, device)
         print("  Video decoded.", flush=True)
 

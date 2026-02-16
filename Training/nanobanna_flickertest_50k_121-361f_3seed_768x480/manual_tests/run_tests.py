@@ -382,6 +382,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             print(f"  SKIP {name}: already exists")
             continue
 
+        latent_path = batch_dir / f"{name}_{step_name}_latent.pt"
         cmd = [
             "uv", "run", "python", "scripts/inference.py",
             "--checkpoint", MODEL_CHECKPOINT,
@@ -399,6 +400,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--include-reference-in-output",
             "--device", f"cuda:{gpu_id}",
             "--output", str(output_path),
+            "--save-latent", str(latent_path),
         ]
 
         env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
@@ -426,11 +428,11 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         for i, t in stage2_tests:
             gpu_id = i % NUM_GPUS
             name = t["name"]
-            stage1_path = batch_dir / f"{name}_{step_name}.mp4"
+            latent_path = batch_dir / f"{name}_{step_name}_latent.pt"
             stage2_path = batch_dir / f"{name}_{step_name}_stage2.mp4"
 
-            if not stage1_path.exists():
-                print(f"  SKIP {name}: stage 1 output missing")
+            if not latent_path.exists():
+                print(f"  SKIP {name}: stage 1 latent missing ({latent_path})")
                 continue
             if skip_existing and stage2_path.exists():
                 print(f"  SKIP {name}: stage 2 already exists")
@@ -438,14 +440,14 @@ def run(checkpoint: str = None, skip_existing: bool = False):
 
             cmd = [
                 "uv", "run", "python", str(HERE / "stage2_upscale.py"),
-                "--input", str(stage1_path),
+                "upscale",
+                "--latent-path", str(latent_path),
                 "--output", str(stage2_path),
                 "--prompt", t["caption"],
                 "--device", f"cuda:{gpu_id}",
                 "--seed", str(t.get("seed", 42)),
-                "--lora-path", checkpoint,
-                "--num-frames", str(t.get("num_frames", 121)),
                 "--frame-rate", str(t.get("frame_rate", 25.0)),
+                "--lora-path", checkpoint,
             ]
 
             env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}

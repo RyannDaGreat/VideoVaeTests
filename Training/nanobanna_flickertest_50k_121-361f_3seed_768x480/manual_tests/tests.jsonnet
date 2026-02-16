@@ -1,13 +1,16 @@
 local base = {
-  batch_title: "kf_sweep_1152x736",
+  batch_title: "kf_sweep_1152x736_100step",
   input_video: "raw_inputs/cgi_boat_original.mp4",
   first_frame: "raw_inputs/cgi_boat_daytime_firstframe.png",
   caption: "A breathtaking daytime shot of a sleek white boat cutting through choppy ocean waves. The scene vividly captures the intricate details of the churning, voluminous sea foam and dynamic, misting water spray crashing against the hull, with brilliant sunlight reflecting off every crest, ripple, and droplet of the turbulent water.",
   num_frames: 121,
   width: 1152,
   height: 736,
-  num_diffusion_steps: 30,
+  num_diffusion_steps: 100,
   seed: 42,
+  // Stage 2: upsample raw latent 2x + denoise with distilled LoRA (3 steps)
+  // Output will be 2304x1472 (2x the stage 1 resolution)
+  stage_2: { enabled: true },
 };
 
 // Keyframe sweep: 8 tests from sparse (8kf) to dense (80kf)

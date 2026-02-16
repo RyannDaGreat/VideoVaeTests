@@ -277,6 +277,12 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         default=None,
         help="Output audio path (.wav, optional - if not provided, audio will be embedded in video)",
     )
+    parser.add_argument(
+        "--save-latent",
+        type=str,
+        default=None,
+        help="Save raw patchified latent to .pt file (for stage 2 upscaling)",
+    )
 
     # Device arguments
     parser.add_argument(
@@ -396,6 +402,7 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         stg_scale=args.stg_scale,
         stg_blocks=args.stg_blocks,
         stg_mode=args.stg_mode,
+        save_latent_path=args.save_latent,
     )
 
     # Generate with progress bar
