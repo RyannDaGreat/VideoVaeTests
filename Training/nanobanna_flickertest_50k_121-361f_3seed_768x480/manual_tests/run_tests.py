@@ -169,6 +169,28 @@ def make_test_name(num_frames, num_keyframes, width, height, seed, num_steps, in
     return f"{num_frames}f_{num_keyframes}kf_{width}x{height}_{num_steps}st_s{seed}_i{index}"
 
 
+def resolve_seed(seed):
+    """
+    Resolve seed specification to a concrete integer.
+
+    Supports two formats:
+    - int: returned as-is
+    - String "random": generate a random seed (from system entropy)
+
+    Pure function — no side effects.
+
+    >>> resolve_seed(42)
+    42
+    >>> isinstance(resolve_seed("random"), int)
+    True
+    """
+    if isinstance(seed, int):
+        return seed
+    if isinstance(seed, str) and seed.strip().lower() == "random":
+        return random.SystemRandom().randint(0, 2**31 - 1)
+    raise ValueError(f"Unknown seed format: {seed!r}")
+
+
 def resolve_keyframes(keyframes, num_frames, seed):
     """
     Resolve keyframe specification to a concrete sorted list of frame indices.
@@ -242,14 +264,21 @@ def save_video_lossless(path, frames, fps=25):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _load_tests():
-    """Load tests from .jsonnet, resolve keyframe shorthands, return list of dicts."""
+    """
+    Load tests from .jsonnet and resolve all string shorthands to concrete values.
+
+    Resolves (in order):
+    - seed: int or "random" → concrete int
+    - keyframes: list or "random N" → concrete sorted list (uses resolved seed)
+    """
     raw_json = _jsonnet.evaluate_file(str(TESTS_JSONNET))
     tests = json.loads(raw_json)
     for t in tests:
+        t["seed"] = resolve_seed(t.get("seed", 42))
         t["keyframes"] = resolve_keyframes(
             t["keyframes"],
             t.get("num_frames", 121),
-            t.get("seed", 42),
+            t["seed"],
         )
     return tests
 
@@ -352,15 +381,27 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     # Determine batch title from JSON or derive from first test
     batch_title = tests[0].get("batch_title", "manual_tests") if tests else "manual_tests"
 
-    # Create archival output directory
+    # Create archival output directory (unique path to avoid collisions)
     batch_dirname = make_batch_dirname(batch_title, step_name)
-    batch_dir = OUTPUTS_DIR / batch_dirname
+    batch_dir = Path(rp.get_unique_copy_path(str(OUTPUTS_DIR / batch_dirname)))
     batch_dir.mkdir(parents=True, exist_ok=True)
 
     # Save resolved tests as vanilla JSON + source jsonnet for archival
     with open(batch_dir / "tests.json", "w") as f:
         json.dump(tests, f, indent=2)
     shutil.copy2(str(TESTS_JSONNET), str(batch_dir / "tests.jsonnet"))
+
+    # Copy relevant raw inputs for self-contained archival
+    raw_dir = batch_dir / "raw_inputs"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    raw_files = set()
+    for t in tests:
+        raw_files.add(t.get("input_video", ""))
+        raw_files.add(t.get("first_frame", ""))
+    for f in raw_files:
+        src = HERE / f
+        if src.exists():
+            shutil.copy2(str(src), str(raw_dir / src.name))
 
     # Generate references into the batch folder
     ref_dir = generate_references(batch_dir=batch_dir)
