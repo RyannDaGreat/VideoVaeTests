@@ -35,11 +35,13 @@ local subjects = {
 
 // ── Keyframe sweep generator ────────────────────────────────────────────────
 local kf_counts = [8, 16, 32, 44, 56, 64, 72, 80];
+local kf_counts = [4, 6, 8, 12, 16, 20, 26, 32];
 
 local make_tests(config) = [
   config {
     name: "%df_%dkf_%dx%d_s%d_i%d" % [config.num_frames, kf_counts[i], config.width, config.height, config.seed, i],
     keyframes: "random %d" % kf_counts[i],  // overrides default keyframes
+    seed: 'random',
   }
   for i in std.range(0, std.length(kf_counts) - 1)
 ];
