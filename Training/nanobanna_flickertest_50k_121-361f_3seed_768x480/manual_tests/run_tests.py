@@ -30,11 +30,13 @@ Usage:
 
 import json
 import os
+import random
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+import _jsonnet
 import cv2
 import numpy as np
 import fire
@@ -51,7 +53,7 @@ REPO_ROOT = Path(subprocess.check_output(
 LTX_TRAINER = REPO_ROOT / "LTX2" / "src" / "packages" / "ltx-trainer"
 DOWNLOAD_MODELS = REPO_ROOT / "LTX2" / "models" / "download_models.py"
 CHECKPOINTS_DIR = PROJECT / "outputs" / "checkpoints"
-TESTS_JSON = HERE / "tests.json"
+TESTS_JSONNET = HERE / "tests.jsonnet"
 OUTPUTS_DIR = HERE / "test_outputs"
 NUM_GPUS = 8
 
@@ -63,6 +65,8 @@ PULSE_MASK_PX = 128  # fixed pulse mask width in final output (pixels)
 # ── Model paths (localized) ─────────────────────────────────────────────────
 MODEL_CHECKPOINT = "/models/LTX2/ltx-2-19b-dev.safetensors"
 TEXT_ENCODER = "/models/LTX2/gemma-3-12b-it-qat-q4_0-unquantized"
+SPATIAL_UPSAMPLER = "/models/LTX2/ltx-2-spatial-upscaler-x2-1.0.safetensors"
+DISTILLED_LORA = "/models/LTX2/ltx-2-19b-distilled-lora-384.safetensors"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -165,6 +169,40 @@ def make_test_name(num_frames, num_keyframes, width, height, seed, num_steps, in
     return f"{num_frames}f_{num_keyframes}kf_{width}x{height}_{num_steps}st_s{seed}_i{index}"
 
 
+def resolve_keyframes(keyframes, num_frames, seed):
+    """
+    Resolve keyframe specification to a concrete sorted list of frame indices.
+
+    Supports two formats:
+    - List of ints: returned as-is (already explicit keyframes)
+    - String "random N": generate N randomly distributed keyframes seeded by `seed`,
+      always including frame 0.
+
+    Pure function — no side effects (uses isolated RNG).
+
+    >>> resolve_keyframes([0, 5, 10], 121, 42)
+    [0, 5, 10]
+    >>> kf = resolve_keyframes("random 8", 121, 42)
+    >>> len(kf)
+    8
+    >>> kf[0]
+    0
+    >>> kf == sorted(set(kf))
+    True
+    """
+    if isinstance(keyframes, list):
+        return keyframes
+    if isinstance(keyframes, str) and keyframes.startswith("random "):
+        n = int(keyframes.split()[1])
+        rng = random.Random(seed)
+        n = min(n, num_frames)
+        # Always include frame 0; pick n-1 more from 1..num_frames-1
+        candidates = list(range(1, num_frames))
+        chosen = rng.sample(candidates, min(n - 1, len(candidates)))
+        return sorted([0] + chosen)
+    raise ValueError(f"Unknown keyframes format: {keyframes!r}")
+
+
 def make_batch_dirname(batch_title, step_name):
     """
     Generate a batch output directory name.
@@ -204,8 +242,16 @@ def save_video_lossless(path, frames, fps=25):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _load_tests():
-    with open(TESTS_JSON) as f:
-        return json.load(f)
+    """Load tests from .jsonnet, resolve keyframe shorthands, return list of dicts."""
+    raw_json = _jsonnet.evaluate_file(str(TESTS_JSONNET))
+    tests = json.loads(raw_json)
+    for t in tests:
+        t["keyframes"] = resolve_keyframes(
+            t["keyframes"],
+            t.get("num_frames", 121),
+            t.get("seed", 42),
+        )
+    return tests
 
 
 def _find_latest_checkpoint():
@@ -311,8 +357,9 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     batch_dir = OUTPUTS_DIR / batch_dirname
     batch_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy tests.json into the batch folder for archival
-    shutil.copy2(str(TESTS_JSON), str(batch_dir / "tests.json"))
+    # Save resolved tests as vanilla JSON into the batch folder for archival
+    with open(batch_dir / "tests.json", "w") as f:
+        json.dump(tests, f, indent=2)
 
     # Generate references into the batch folder
     ref_dir = generate_references(batch_dir=batch_dir)
@@ -367,6 +414,53 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     for n, p in active:
         p.wait()
         print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n}")
+
+    # Stage 2 upscaling (if any tests have it enabled)
+    stage2_tests = [(i, t) for i, t in enumerate(tests) if t.get("stage_2", {}).get("enabled", False)]
+    if stage2_tests:
+        print(f"\n{'=' * 70}")
+        print(f"  Stage 2 Upscaling - {len(stage2_tests)} tests")
+        print(f"{'=' * 70}\n")
+
+        active = []
+        for i, t in stage2_tests:
+            gpu_id = i % NUM_GPUS
+            name = t["name"]
+            stage1_path = batch_dir / f"{name}_{step_name}.mp4"
+            stage2_path = batch_dir / f"{name}_{step_name}_stage2.mp4"
+
+            if not stage1_path.exists():
+                print(f"  SKIP {name}: stage 1 output missing")
+                continue
+            if skip_existing and stage2_path.exists():
+                print(f"  SKIP {name}: stage 2 already exists")
+                continue
+
+            cmd = [
+                "uv", "run", "python", str(HERE / "stage2_upscale.py"),
+                "--input", str(stage1_path),
+                "--output", str(stage2_path),
+                "--prompt", t["caption"],
+                "--device", f"cuda:{gpu_id}",
+                "--seed", str(t.get("seed", 42)),
+                "--lora-path", checkpoint,
+                "--num-frames", str(t.get("num_frames", 121)),
+                "--frame-rate", str(t.get("frame_rate", 25.0)),
+            ]
+
+            env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
+            print(f"  [GPU {gpu_id}] Stage 2: {name}")
+            active.append((name, subprocess.Popen(cmd, cwd=str(LTX_TRAINER), env=env)))
+
+            if len(active) >= NUM_GPUS:
+                for n, p in active:
+                    p.wait()
+                    print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n} (stage 2)")
+                active = []
+
+        for n, p in active:
+            p.wait()
+            print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n} (stage 2)")
 
     print(f"\nOutputs in: {batch_dir}")
 

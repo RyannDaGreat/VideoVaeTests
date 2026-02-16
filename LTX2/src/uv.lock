@@ -307,6 +307,18 @@ wheels = [
 ]
 
 [[package]]
+name = "ffmpeg-python"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "future" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/dd/5e/d5f9105d59c1325759d838af4e973695081fbbc97182baf73afc78dec266/ffmpeg-python-0.2.0.tar.gz", hash = "sha256:65225db34627c578ef0e11c8b1eb528bb35e024752f6f10b78c011f6f64c4127", size = 21543, upload-time = "2019-07-06T00:19:08.989Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/0c/56be52741f75bad4dc6555991fabd2e07b432d333da82c11ad701123888a/ffmpeg_python-0.2.0-py3-none-any.whl", hash = "sha256:ac441a0404e053f8b6a1113a77c0f452f1cfc62f6344a769475ffdc0f56c23c5", size = 25024, upload-time = "2019-07-06T00:19:07.215Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "3.20.2"
 source = { registry = "https://pypi.org/simple" }
@@ -334,6 +346,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/b6/27/954057b0d1f53f086f681755207dda6de6c660ce133c829158e8e8fe7895/fsspec-2025.12.0.tar.gz", hash = "sha256:c505de011584597b1060ff778bb664c1bc022e87921b0e4f10cc9c44f9635973", size = 309748, upload-time = "2025-12-03T15:23:42.687Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/51/c7/b64cae5dba3a1b138d7123ec36bb5ccd39d39939f18454407e5468f4763f/fsspec-2025.12.0-py3-none-any.whl", hash = "sha256:8bf1fe301b7d8acfa6e8571e3b1c3d158f909666642431cc78a1b7b4dbc5ec5b", size = 201422, upload-time = "2025-12-03T15:23:41.434Z" },
+]
+
+[[package]]
+name = "future"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a7/b2/4140c69c6a66432916b26158687e821ba631a4c9273c474343badf84d3ba/future-1.0.0.tar.gz", hash = "sha256:bd2968309307861edae1458a4f8a4f3598c03be43b97521076aebf5d94c07b05", size = 1228490, upload-time = "2024-02-21T11:52:38.461Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/71/ae30dadffc90b9006d77af76b393cb9dfbfc9629f339fc1574a1c52e6806/future-1.0.0-py3-none-any.whl", hash = "sha256:929292d34f5872e70396626ef385ec22355a1fae8ad29e1a734c3e43f9fbc216", size = 491326, upload-time = "2024-02-21T11:52:35.956Z" },
 ]
 
 [[package]]
@@ -506,6 +527,34 @@ wheels = [
 ]
 
 [[package]]
+name = "jsonnet"
+version = "0.21.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/bd/e4a77ccb757a3060f30eefbd090b9593fe6ad15e5ef8ff0c3fc4aa5237cf/jsonnet-0.21.0.tar.gz", hash = "sha256:7fe2865e6e1dc2b9791d880fea3eba7e72334b256d85f027da3ae1f56a55b1da", size = 461207, upload-time = "2025-05-07T13:20:51.321Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/8e/7658eccf7b1c76da3d65016f2000c10118e9f406268592d61e4e9b13ee84/jsonnet-0.21.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:e4717d83a15144adc9ae7d3d0a0d0ff54d7fe18349346130bd9b9bb7f8c9b0db", size = 473029, upload-time = "2025-05-07T13:20:01.359Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/e8/46ba8d6ac206429c3d6f64b453b034e743316ccb281d1c6d36b663ed926a/jsonnet-0.21.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:121a24583fe6980705b8f775f2b66e2b01c4006dbd258d047d54f60b76b98681", size = 438844, upload-time = "2025-05-07T13:20:03.959Z" },
+    { url = "https://files.pythonhosted.org/packages/13/1b/a77b8922d3e0dc90baba2a3bb783267acd76becd125d91144312d865b908/jsonnet-0.21.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2c87bbf37e2f118e75de30ec4d3d1d2a5eedd7fe213f00042e3a2fe0e7026bbc", size = 6527221, upload-time = "2025-05-07T13:20:06.276Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/48/cd23105784731f94beecc53c8d7e966fde9a5efd0276b8765b453d97afea/jsonnet-0.21.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:902cb1a9bb7916f3e8041a2936e6ba4deea7312843927360c698d1092144d49c", size = 6777703, upload-time = "2025-05-07T13:20:08.812Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/5c/323f52ee8284c9c37690a625fee8f1e3ededc8a7b79e4ff1adf8a16da02d/jsonnet-0.21.0-cp310-cp310-win_amd64.whl", hash = "sha256:ad896e2d70bc6ea4c5503b9587703e75a233506a57c33fa3192922e49b97a90a", size = 318250, upload-time = "2025-05-07T13:20:10.586Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/da/2f359a0d29811f7f1c9be3f6beb5cd1f5c2f571cf815511316854bce6ed0/jsonnet-0.21.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:bc2c8b35122884dcb63431a831e81d6ab494e37148704a781ef88bb7e12fb36b", size = 473030, upload-time = "2025-05-07T13:20:12.681Z" },
+    { url = "https://files.pythonhosted.org/packages/89/39/70062f4f57d03d5fee91b2eaccaae49504a3623ad5fea42527007170aa4d/jsonnet-0.21.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:f837389c6b384070b870c98f12c05847fdd801bb7752ab7893beaeac662f4b54", size = 438840, upload-time = "2025-05-07T13:20:14.501Z" },
+    { url = "https://files.pythonhosted.org/packages/55/0b/601cbdaddf6c0fad50ed823b8d2dbb7f10e428034c251fb2f5355869838e/jsonnet-0.21.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:85a2089fb77d6db86ef84d9403654d710ba3e41dcf4ad21d0cba2635497ba852", size = 6528833, upload-time = "2025-05-07T13:20:16.313Z" },
+    { url = "https://files.pythonhosted.org/packages/03/45/30b1cf590e56fa2ee082c6abb8cc5410fcb13a2e944fc49305f15f4e6e22/jsonnet-0.21.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:559d59e8984b804f60a97d72e7aeaa2a2572fc0a5bf7ef1109eb21b91dbc166c", size = 6779026, upload-time = "2025-05-07T13:20:18.584Z" },
+    { url = "https://files.pythonhosted.org/packages/98/1b/70cb03ad7299008798878e146d1ffea67579ab0c53b9372f438eddd7987d/jsonnet-0.21.0-cp311-cp311-win_amd64.whl", hash = "sha256:6018365037491e91b5d3f0eccfdf78812d84e25aa9ccbba097bd3ba6ce70709a", size = 318250, upload-time = "2025-05-07T13:20:20.377Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/42/2bf7da089e6b5ca75f7a7c3bb2e9c39e1783d4359ab17c5083b0698dfbfa/jsonnet-0.21.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:ba35051103bed81ddcb446db52c31bba00391c52069107498eb44952feac8a30", size = 473523, upload-time = "2025-05-07T13:20:22.449Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/e0/f3ef97fa0535b435fbde76df9da63b78602692cca0d4b8ddf2d8439830fc/jsonnet-0.21.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:71afa464a74dcbec30b39d8f28cad091ce27497a8620c0ef7859814e173ce454", size = 438912, upload-time = "2025-05-07T13:20:24.425Z" },
+    { url = "https://files.pythonhosted.org/packages/97/ee/3613b2f2216d4a53c13bb081f7b77d6a7977a4169039efa7eb77bf9d71da/jsonnet-0.21.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fccebb019917004cf860490a80d17189bad01c9d425b7a1cb138a14745488cf0", size = 6529912, upload-time = "2025-05-07T13:20:26.671Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/90/dee03ee550737b913f64428ac392e8970d807b02c938b766bf7e40fa3cfc/jsonnet-0.21.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:ba913bb650b2b5dac29e65fd6963dff7cad960580523c0ccdd66e23e22e3b772", size = 6782491, upload-time = "2025-05-07T13:20:28.576Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/a5/c3a2592383ec68e02d9d31740764f144dfb8df28d4f2d003c40d05f73478/jsonnet-0.21.0-cp312-cp312-win_amd64.whl", hash = "sha256:7a39b5a3195bb6ec16050d14f8aa9378cf862ff2dd54ca0973cbbfbc9cec6e89", size = 318260, upload-time = "2025-05-07T13:20:30.159Z" },
+    { url = "https://files.pythonhosted.org/packages/87/9a/b7825f91d889fbe47125911a34f56f0cb94f01afdffb0bc6390f1573bb1c/jsonnet-0.21.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:95d0e0e59ed29f7e424066c05c4585fd255e288fd6050686e1d5bb54bd719896", size = 473524, upload-time = "2025-05-07T13:20:31.601Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/66/fe05afdcf269a8be7a99aa33741ad31cf083a505acb46010a90781b00106/jsonnet-0.21.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:eb926cae6ea157e2e0851e6ec8f6a2949e926f67754a87980bbcb2698a211dc5", size = 438913, upload-time = "2025-05-07T13:20:33.281Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/2c/c4760c07b3506312f37c237c9a0840f3db44e476da5af2c0b883bb5b1070/jsonnet-0.21.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cb642fe864e41a432957f71bfa57ae4eaab904886f06dec183c9e40d6ce4e24b", size = 6529866, upload-time = "2025-05-07T13:20:35.359Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/56/33a2eb1d263952603f9b16f3789ecac0c7a3b9bb5a6410d69173a6ed3bd9/jsonnet-0.21.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:22a87070c1c50ecf6c0c8df252a4984a89275ceb18fe059dfa99eeaf548be71f", size = 6782518, upload-time = "2025-05-07T13:20:37.777Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/d9/2c68a80f9cbda8e4b4721032b7def236109bd8991d1670b60beb5cfb505c/jsonnet-0.21.0-cp313-cp313-win_amd64.whl", hash = "sha256:6e23e55e0a0811b899398aaa03a5b46eea01ffcafc697a705fe7b07eb8cd0ce7", size = 318264, upload-time = "2025-05-07T13:20:39.842Z" },
+]
+
+[[package]]
 name = "lazy-loader"
 version = "0.4"
 source = { registry = "https://pypi.org/simple" }
@@ -589,10 +638,12 @@ dependencies = [
     { name = "accelerate" },
     { name = "av" },
     { name = "bitsandbytes", marker = "sys_platform == 'linux'" },
+    { name = "ffmpeg-python" },
     { name = "fire" },
     { name = "huggingface-hub", extra = ["hf-xet"] },
     { name = "imageio" },
     { name = "imageio-ffmpeg" },
+    { name = "jsonnet" },
     { name = "ltx-core" },
     { name = "opencv-python" },
     { name = "optimum-quanto" },
@@ -625,10 +676,12 @@ requires-dist = [
     { name = "accelerate", specifier = ">=1.2.1" },
     { name = "av", specifier = ">=14.2.1" },
     { name = "bitsandbytes", marker = "sys_platform == 'linux'", specifier = ">=0.45.2" },
+    { name = "ffmpeg-python" },
     { name = "fire", specifier = ">=0.7.1" },
     { name = "huggingface-hub", extras = ["hf-xet"], specifier = ">=0.31.4" },
     { name = "imageio", specifier = ">=2.37.0" },
     { name = "imageio-ffmpeg", specifier = ">=0.6.0" },
+    { name = "jsonnet" },
     { name = "ltx-core", editable = "packages/ltx-core" },
     { name = "opencv-python", specifier = ">=4.11.0.86" },
     { name = "optimum-quanto", specifier = ">=0.2.6" },
