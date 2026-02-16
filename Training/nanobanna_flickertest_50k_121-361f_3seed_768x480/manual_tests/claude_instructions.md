@@ -35,11 +35,16 @@ Convert manual test configuration from JSON to Jsonnet for compactness and flexi
 - `concerns.md` — Progress log
 
 ## Stage 2 Architecture
-- Stage 1: Generate at target resolution using trained LoRA
-- Spatial upsampler: 2x latent upsampling (ltx-2-spatial-upscaler-x2-1.0)
-- Stage 2 denoising: Distilled LoRA with 4 sigma steps (STAGE_2_DISTILLED_SIGMA_VALUES)
-- Final output: 2x the stage 1 resolution
-- VRAM concern: 19B transformer + upsampler + VAE decoder at high res
+- Stage 1: Generate at 1152x736 using trained LoRA (with pulse mask + padding)
+- **Latent crop**: remove pulse mask (left 4 latent cols) + padding (top 5 latent rows) in latent space
+- Spatial upsampler: 2x latent upsampling of cropped content → 2048x1152 clean output
+- Condition image: original high-res first frame resized to 2048x1152, VAE-encoded, injected at frame 0
+- Stage 2 denoising: distilled LoRA + detailer LoRA, 3 steps, simple_denoising_func (no CFG)
+- Sigma schedule: [0.909375, 0.725, 0.421875, 0.0] (noise_scale = 0.909375)
+- Subprocess isolation: text encode + image encode + decode each run in child processes (Fire subcommands)
+  to avoid Gemma 63.9 GiB GPU memory leak and VAE decoder leak
+- 2048x1152 = 36,864 tokens — fits on A100-80GB (notebooks proved 32,640 works)
+- Also tested 2304x1472 (no crop) = 52,992 tokens — also fits but includes pulse mask in output
 
 ## Critical Constraints
 - `num_frames % 8 == 1` (LTX requirement: 121, 241, 361, etc.)
@@ -74,3 +79,13 @@ User wants tests with keyframe counts: 8, 16, 32, and more up to current max (~8
 
 ## Lessons Learned
 (append-only — never delete)
+- Re-encoding decoded video back to latent space is LOSSY → blue cast + grid artifacts
+- Must use raw patchified latent from --save-latent, unpatchify, then upsample
+- Saved latent is PATCHIFIED (B, N, C) — must unpatchify to (B, C, LT, LH, LW) before upsample_video
+- Gemma text encoder leaks 63.9 GiB GPU even after del/gc → subprocess isolation required
+- VAE decoder also leaks → subprocess isolation required
+- Recursive Fire subcommands > nested Python strings (see ~/CleanCode/CLAUDE.md)
+- Pulse mask (128px) and padding are divisible by 32 (VAE spatial factor) → clean latent-space crop
+- DummyRegistry (default) loads only relevant weights per component — no cross-contamination
+- 2304x1472 (52,992 tokens) fits on A100-80GB when GPU is clean (previous OOMs were from memory leaks)
+- ffmpeg-python must be in ltx-trainer requirements for rp.save_video_mp4 to work in uv venv

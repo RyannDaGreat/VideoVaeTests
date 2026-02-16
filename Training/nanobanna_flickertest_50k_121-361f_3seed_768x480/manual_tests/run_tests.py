@@ -426,12 +426,23 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         print(f"  Stage 2 Upscaling - {len(stage2_tests)} tests")
         print(f"{'=' * 70}\n")
 
+        # Compute source aspect ratio from the input video (same for all tests)
+        sample_test = stage2_tests[0][1]
+        source_video_path = str(HERE / sample_test["input_video"])
+        cap = cv2.VideoCapture(source_video_path)
+        source_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        source_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        cap.release()
+        source_aspect = source_w / source_h
+        print(f"  Source aspect ratio: {source_aspect:.4f} ({source_w}x{source_h})")
+
         active = []
         for i, t in stage2_tests:
             gpu_id = i % NUM_GPUS
             name = t["name"]
             latent_path = batch_dir / "latents" / f"{name}_{step_name}.pt"
             stage2_path = batch_dir / f"{name}_{step_name}_stage2.mp4"
+            first_frame_path = str(HERE / t["first_frame"])
 
             if not latent_path.exists():
                 print(f"  SKIP {name}: stage 1 latent missing ({latent_path})")
@@ -446,6 +457,9 @@ def run(checkpoint: str = None, skip_existing: bool = False):
                 "--latent-path", str(latent_path),
                 "--output", str(stage2_path),
                 "--prompt", t["caption"],
+                "--first-frame", first_frame_path,
+                "--pulse-mask-px", str(PULSE_MASK_PX),
+                "--source-aspect", str(source_aspect),
                 "--device", f"cuda:{gpu_id}",
                 "--seed", str(t.get("seed", 42)),
                 "--frame-rate", str(t.get("frame_rate", 25.0)),

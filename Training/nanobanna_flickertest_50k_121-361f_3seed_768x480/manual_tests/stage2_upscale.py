@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """Stage 2 upscaling from saved raw latent (no re-encoding round trip).
 
-Takes a raw patchified latent saved by inference.py --save-latent, unpatchifies it,
-upsamples 2x with the spatial upsampler, refines with distilled LoRA (3 steps),
-and decodes to video.
+Takes a raw patchified latent saved by inference.py --save-latent, crops out the
+pulse mask and padding in latent space, upsamples 2x with the spatial upsampler,
+conditions frame 0 with the original high-res first frame, refines with distilled
+LoRA (3 steps), and decodes to video.
 
-This follows the exact TI2VidTwoStagesPipeline pattern:
-  raw latent → unpatchify → upsample 2x → denoise (3 distilled steps) → decode
-
-Subprocess isolation: text encoding and VAE decoding run as subcommands of this
-same script (via Fire) in separate processes, avoiding Gemma/VAE memory leaks.
+Subprocess isolation: text encoding, VAE encoding, and VAE decoding run as
+subcommands of this same script (via Fire) in separate processes, avoiding
+Gemma/VAE memory leaks. See CLAUDE.md: recursive Fire > nested Python strings.
 
 Commands:
-    upscale       Full pipeline: text encode → upsample → denoise → decode
-    encode_text   (subprocess) Encode text prompt, save embeddings to .pt
-    decode_latent (subprocess) Decode a spatial latent .pt to video .mp4
+    upscale        Full pipeline: crop → upsample → condition → denoise → decode
+    encode_text    (subprocess) Encode text prompt, save embeddings to .pt
+    encode_image   (subprocess) VAE-encode an image at target resolution to .pt
+    decode_latent  (subprocess) Decode a spatial latent .pt to video .mp4
 """
 
 import subprocess as sp
@@ -39,6 +39,9 @@ STAGE_2_DISTILLED_SIGMA_VALUES = [0.909375, 0.725, 0.421875, 0.0]
 SELF = str(Path(__file__).resolve())
 LTX_TRAINER_DIR = str(Path(__file__).resolve().parents[3] / "LTX2" / "src" / "packages" / "ltx-trainer")
 
+# VAE spatial compression factor
+VAE_SPATIAL = 32
+
 
 def _mem(label=""):
     """Print GPU memory usage. Pure diagnostic, no side effects on state."""
@@ -58,6 +61,18 @@ def _cleanup():
         torch.cuda.synchronize()
 
 
+def _run_subprocess(cmd):
+    """
+    Run a subcommand of this script in a child process.
+
+    Pure function — child process exits, fully releasing GPU memory.
+    """
+    full_cmd = ["uv", "run", "python", SELF] + cmd
+    result = sp.run(full_cmd, cwd=LTX_TRAINER_DIR)
+    if result.returncode != 0:
+        raise RuntimeError(f"Subprocess failed: {' '.join(cmd[:2])}")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Subprocess subcommands (invoked by upscale via recursive calls to this script)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -67,7 +82,6 @@ def encode_text(prompt: str, output: str, device: str = "cuda:0"):
     Encode a text prompt and save embeddings to a .pt file.
 
     Runs as a subprocess to avoid Gemma's 63.9 GiB GPU memory leak.
-    The subprocess exits cleanly, releasing all GPU memory.
     """
     from ltx_core.text_encoders.gemma import encode_text as _encode_text
     from ltx_pipelines.utils import ModelLedger
@@ -82,6 +96,30 @@ def encode_text(prompt: str, output: str, device: str = "cuda:0"):
     print(f"Text encoding saved to {output}")
 
 
+def encode_image(image_path: str, output: str, width: int, height: int, device: str = "cuda:0"):
+    """
+    Resize an image to (width, height), VAE-encode it, and save latent to .pt.
+
+    Runs as a subprocess to avoid VAE encoder memory leaks.
+    """
+    from PIL import Image
+    from torchvision import transforms
+    from ltx_pipelines.utils import ModelLedger
+
+    img = Image.open(image_path).convert("RGB")
+    img = img.resize((width, height), Image.LANCZOS)
+    img_tensor = transforms.ToTensor()(img).unsqueeze(0)  # (1, 3, H, W)
+    img_tensor = (img_tensor * 2.0 - 1.0).to(device, dtype=torch.float32)
+    img_5d = img_tensor.unsqueeze(2)  # (1, 3, 1, H, W)
+
+    ledger = ModelLedger(dtype=torch.bfloat16, device=torch.device(device), checkpoint_path=MODEL_CHECKPOINT)
+    encoder = ledger.video_encoder()
+    with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+        latent = encoder(img_5d)
+    torch.save(latent.cpu(), output)
+    print(f"Image encoded: {image_path} → {latent.shape} saved to {output}")
+
+
 def decode_latent(
     latent_path: str,
     output: str,
@@ -93,7 +131,6 @@ def decode_latent(
     Decode a spatial latent .pt file to an .mp4 video.
 
     Runs as a subprocess to avoid VAE decoder memory leaks.
-    The subprocess exits cleanly, releasing all GPU memory.
     """
     import rp
     from ltx_core.model.video_vae import TilingConfig, decode_video as vae_decode_video
@@ -118,25 +155,51 @@ def decode_latent(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Main pipeline
+# Pure functions
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _run_subprocess(cmd):
+def compute_latent_crop(width, height, pulse_mask_px, source_aspect):
     """
-    Run a subcommand of this script in a child process.
+    Compute latent-space crop coordinates to remove pulse mask and padding.
 
-    Pure function — child process exits, fully releasing GPU memory.
+    Returns (top, left) in latent units — the number of latent rows/cols to skip.
+    The content region is latent[:, :, :, top:, left:].
+
+    Pure function — no side effects.
+
+    >>> compute_latent_crop(1152, 736, 128, 1920/1080)
+    (5, 4)
+    >>> compute_latent_crop(768, 480, 128, 1920/1080)
+    (2, 4)
     """
-    full_cmd = ["uv", "run", "python", SELF] + cmd
-    result = sp.run(full_cmd, cwd=LTX_TRAINER_DIR)
-    if result.returncode != 0:
-        raise RuntimeError(f"Subprocess failed: {' '.join(cmd[:2])}")
+    avail_w = width - pulse_mask_px
+    avail_h = height
+    if avail_w / avail_h > source_aspect:
+        content_h = avail_h
+        content_w = round(avail_h * source_aspect)
+    else:
+        content_w = avail_w
+        content_h = round(avail_w / source_aspect)
 
+    top_pad = height - content_h  # padding above content (bottom-aligned)
+    left_pad = pulse_mask_px + (avail_w - content_w)  # mask + any extra (right-aligned)
+
+    lt_top = top_pad // VAE_SPATIAL
+    lt_left = left_pad // VAE_SPATIAL
+    return lt_top, lt_left
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Main pipeline
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def upscale(
     latent_path: str,
     output: str,
     prompt: str,
+    first_frame: str,
+    pulse_mask_px: int,
+    source_aspect: float,
     device: str = "cuda:0",
     seed: int = 42,
     frame_rate: float = 25.0,
@@ -145,18 +208,21 @@ def upscale(
     """
     Stage 2 upscaling from a saved raw patchified latent.
 
-    Flow (matching TI2VidTwoStagesPipeline exactly):
+    Flow:
       1. Encode text in subprocess (Gemma leaks 63.9 GiB otherwise)
-      2. Load + unpatchify latent → upsample 2x with spatial upsampler
-      3. Denoise 3 distilled steps with simple_denoising_func (no CFG)
-      4. Save denoised latent (so decode can be retried without redoing diffusion)
-      5. Decode to video in subprocess (VAE decoder also leaks)
+      2. Load + unpatchify latent → crop pulse mask + padding in latent space
+      3. Upsample cropped latent 2x with spatial upsampler
+      4. Encode condition image (original high-res first frame at 2x content dims)
+      5. Denoise 3 distilled steps with condition image at frame 0
+      6. Save denoised latent (so decode can be retried without redoing diffusion)
+      7. Decode to video in subprocess (VAE decoder also leaks)
 
     LoRAs for stage 2: distilled + detailer (+ optionally trained LoRA).
     """
     from ltx_core.components.diffusion_steps import EulerDiffusionStep
     from ltx_core.components.noisers import GaussianNoiser
     from ltx_core.components.patchifiers import VideoLatentPatchifier
+    from ltx_core.conditioning.types.latent_cond import VideoConditionByLatentIndex
     from ltx_core.loader import LTXV_LORA_COMFY_RENAMING_MAP, LoraPathStrengthAndSDOps
     from ltx_core.model.upsampler import upsample_video
     from ltx_core.types import VideoLatentShape, VideoPixelShape
@@ -174,7 +240,7 @@ def upscale(
     patchifier = VideoLatentPatchifier(patch_size=1)
 
     # ── Phase 1: Encode text in subprocess ──────────────────────────────
-    print("\n[1/4] Encoding text (subprocess)...")
+    print("\n[1/5] Encoding text (subprocess)...")
     embeddings_path = tempfile.mktemp(suffix=".pt")
     _run_subprocess(["encode_text", "--prompt", prompt, "--output", embeddings_path, "--device", device])
     embeddings = torch.load(embeddings_path, weights_only=True)
@@ -182,10 +248,9 @@ def upscale(
     a_ctx = embeddings["a"].to(torch_device)
     Path(embeddings_path).unlink(missing_ok=True)
     _mem("after text encode subprocess")
-    print(f"  Text encoded: video {v_ctx.shape}, audio {a_ctx.shape}")
 
-    # ── Phase 2: Load latent, unpatchify, upsample 2x ──────────────────
-    print("\n[2/4] Loading latent + upsampling 2x...")
+    # ── Phase 2: Load latent, unpatchify, crop, upsample 2x ────────────
+    print("\n[2/5] Loading latent → crop → upsample 2x...")
     data = torch.load(latent_path, weights_only=True)
     patchified_latent = data["latent"]
     s1_height = data["height"]
@@ -194,53 +259,68 @@ def upscale(
 
     # Unpatchify from (B, N, C) to spatial (B, C, LT, LH, LW)
     lt = (num_frames - 1) // 8 + 1
-    lh = s1_height // 32
-    lw = s1_width // 32
+    lh = s1_height // VAE_SPATIAL
+    lw = s1_width // VAE_SPATIAL
     latent_shape = VideoLatentShape(batch=1, channels=128, frames=lt, height=lh, width=lw)
     spatial_latent = patchifier.unpatchify(patchified_latent, output_shape=latent_shape)
     spatial_latent = spatial_latent.to(device=torch_device, dtype=dtype)
-    print(f"  Unpatchified latent: {spatial_latent.shape} ({s1_width}x{s1_height})")
+    print(f"  Full latent: {spatial_latent.shape} ({s1_width}x{s1_height})")
 
-    target_h = s1_height * 2
-    target_w = s1_width * 2
-    print(f"  Target: {target_w}x{target_h}")
+    # Crop pulse mask + padding in latent space
+    crop_top, crop_left = compute_latent_crop(s1_width, s1_height, pulse_mask_px, source_aspect)
+    cropped = spatial_latent[:, :, :, crop_top:, crop_left:]
+    content_lh, content_lw = cropped.shape[3], cropped.shape[4]
+    content_h = content_lh * VAE_SPATIAL
+    content_w = content_lw * VAE_SPATIAL
+    print(f"  Cropped latent: {cropped.shape} (content {content_w}x{content_h}, removed top={crop_top} left={crop_left})")
+    del spatial_latent
 
-    # Load video encoder + upsampler (DummyRegistry: loads only relevant weights)
+    # Target = 2x content
+    target_h = content_h * 2
+    target_w = content_w * 2
+    print(f"  Stage 2 target: {target_w}x{target_h}")
+
+    # Upsample
     up_ledger = ModelLedger(
         dtype=dtype, device=torch_device,
         checkpoint_path=MODEL_CHECKPOINT,
         spatial_upsampler_path=SPATIAL_UPSAMPLER,
     )
     video_encoder = up_ledger.video_encoder()
-    upsampler = up_ledger.spatial_upsampler()
-
+    upsampler_model = up_ledger.spatial_upsampler()
     with torch.inference_mode():
-        upscaled_latent = upsample_video(
-            latent=spatial_latent,
-            video_encoder=video_encoder,
-            upsampler=upsampler,
-        )
-    print(f"  Upscaled latent: {upscaled_latent.shape}")
-
-    del video_encoder, upsampler, up_ledger, spatial_latent
+        upscaled = upsample_video(latent=cropped, video_encoder=video_encoder, upsampler=upsampler_model)
+    print(f"  Upscaled latent: {upscaled.shape}")
+    del video_encoder, upsampler_model, up_ledger, cropped
     _cleanup()
     _mem("after upsample")
 
-    # ── Phase 3: Denoise 3 distilled steps ──────────────────────────────
-    print(f"\n[3/4] Stage 2 denoising at {target_w}x{target_h} (3 steps)...")
+    # ── Phase 3: Encode condition image in subprocess ───────────────────
+    print(f"\n[3/5] Encoding condition image at {target_w}x{target_h} (subprocess)...")
+    cond_latent_path = tempfile.mktemp(suffix=".pt")
+    _run_subprocess([
+        "encode_image",
+        "--image-path", first_frame,
+        "--output", cond_latent_path,
+        "--width", str(target_w),
+        "--height", str(target_h),
+        "--device", device,
+    ])
+    cond_latent = torch.load(cond_latent_path, weights_only=True).to(torch_device)
+    Path(cond_latent_path).unlink(missing_ok=True)
+    print(f"  Condition latent: {cond_latent.shape}")
+    _mem("after condition encode subprocess")
 
-    # Build LoRA list: distilled + detailer (+ optionally trained LoRA)
+    # ── Phase 4: Denoise 3 distilled steps with condition image ─────────
+    print(f"\n[4/5] Stage 2 denoising at {target_w}x{target_h} (3 steps)...")
+
     loras = []
     if lora_path:
         loras.append(LoraPathStrengthAndSDOps(lora_path, 1.0, LTXV_LORA_COMFY_RENAMING_MAP))
     loras.append(LoraPathStrengthAndSDOps(DISTILLED_LORA, 1.0, LTXV_LORA_COMFY_RENAMING_MAP))
     loras.append(LoraPathStrengthAndSDOps(DETAILER_LORA, 1.0, LTXV_LORA_COMFY_RENAMING_MAP))
 
-    xf_ledger = ModelLedger(
-        dtype=dtype, device=torch_device,
-        checkpoint_path=MODEL_CHECKPOINT,
-        loras=loras,
-    )
+    xf_ledger = ModelLedger(dtype=dtype, device=torch_device, checkpoint_path=MODEL_CHECKPOINT, loras=loras)
     transformer = xf_ledger.transformer()
     _mem("after transformer load")
 
@@ -249,6 +329,9 @@ def upscale(
     stepper = EulerDiffusionStep()
     components = PipelineComponents(dtype=dtype, device=torch_device)
     distilled_sigmas = torch.Tensor(STAGE_2_DISTILLED_SIGMA_VALUES).to(torch_device)
+
+    # Condition frame 0 with the high-res first frame
+    cond = VideoConditionByLatentIndex(latent=cond_latent, strength=1.0, latent_idx=0)
 
     def stage2_loop(sigmas, video_state, audio_state, stepper):
         """Stage 2 denoising: simple_denoising_func (no CFG), matching official pipeline."""
@@ -271,7 +354,7 @@ def upscale(
     with torch.inference_mode():
         video_state, audio_state = denoise_audio_video(
             output_shape=stage_2_shape,
-            conditionings=[],
+            conditionings=[cond],
             noiser=noiser,
             sigmas=distilled_sigmas,
             stepper=stepper,
@@ -280,11 +363,11 @@ def upscale(
             dtype=dtype,
             device=torch_device,
             noise_scale=distilled_sigmas[0],
-            initial_video_latent=upscaled_latent,
+            initial_video_latent=upscaled,
         )
 
     print(f"  Denoising complete. Latent shape: {video_state.latent.shape}")
-    del transformer, upscaled_latent, xf_ledger
+    del transformer, upscaled, xf_ledger, cond_latent
     _cleanup()
     _mem("after denoise")
 
@@ -298,8 +381,8 @@ def upscale(
     del video_state, audio_state
     _cleanup()
 
-    # ── Phase 4: Decode in subprocess ───────────────────────────────────
-    print(f"\n[4/4] Decoding stage 2 video (subprocess)...")
+    # ── Phase 5: Decode in subprocess ───────────────────────────────────
+    print(f"\n[5/5] Decoding stage 2 video (subprocess)...")
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     _run_subprocess([
         "decode_latent",
@@ -317,5 +400,6 @@ if __name__ == "__main__":
     fire.Fire({
         "upscale": upscale,
         "encode_text": encode_text,
+        "encode_image": encode_image,
         "decode_latent": decode_latent,
     })
