@@ -54,13 +54,13 @@ local kf_sweep = [
 
 local i2v_sweep = [
   { i2v_guidance_scale: 1 },
-  { i2v_guidance_scale: 2 },
-  { i2v_guidance_scale: 3 },
-  { i2v_guidance_scale: 4 },
-  { i2v_guidance_scale: 5 },
-  { i2v_guidance_scale: 6 },
-  { i2v_guidance_scale: 7 },
-  { i2v_guidance_scale: 8 },
+  { i2v_guidance_scale: 1.00001 },
+  { i2v_guidance_scale: 1.01 },
+  { i2v_guidance_scale: 1.02 },
+  { i2v_guidance_scale: 1.05 },
+  { i2v_guidance_scale: 1.1 },
+  { i2v_guidance_scale: 1.2 },
+  { i2v_guidance_scale: 1.4 },
 ];
 
 // ── Test generator (applies a sweep to a base config) ───────────────────────
@@ -74,7 +74,10 @@ local make_tests(config, sweep) = [
 local overrides = {
   // i2v_guidance_scale: 4,
   keyframes: "random 32",  // list of ints, or "random N" string (randomness controlled by seed)
+  height: 320,
+  width:512,
+  num_frames: 49,
 } + res_480p;
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-make_tests(defaults + subjects.snowdog + overrides, i2v_sweep)
+make_tests(defaults + subjects.fish + overrides, i2v_sweep)
