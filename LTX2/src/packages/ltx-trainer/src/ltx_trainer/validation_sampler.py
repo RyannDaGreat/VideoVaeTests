@@ -95,6 +95,7 @@ class GenerationConfig:
     # Tiled decoding config: None = use defaults (enabled), False = disable, or TiledDecodingConfig for custom settings
     tiled_decoding: TiledDecodingConfig | Literal[False] | None = None
     save_latent_path: str | None = None  # If set, save raw patchified latent to .pt before decoding
+    i2v_guidance_scale: float = 1.0  # I2V guidance scale; 1.0=disabled (no extra passes), >1 amplifies image conditioning
 
     def __post_init__(self) -> None:
         """Apply default tiled decoding config if not provided."""
@@ -574,7 +575,7 @@ class ValidationSampler:
                 pos_video, pos_audio = x0_model(video=video, audio=audio, perturbations=None)
                 denoised_video, denoised_audio = pos_video, pos_audio
 
-                # Apply CFG if guidance_scale != 1.0
+                # Apply text CFG if guidance_scale != 1.0
                 if cfg_guider.enabled() and v_ctx_neg is not None:
                     video_neg = replace(video, context=v_ctx_neg)
                     audio_neg = replace(audio, context=a_ctx_neg) if audio is not None else None
@@ -583,6 +584,20 @@ class ValidationSampler:
                     denoised_video = denoised_video + cfg_guider.delta(pos_video, neg_video)
                     if audio is not None and denoised_audio is not None:
                         denoised_audio = denoised_audio + cfg_guider.delta(pos_audio, neg_audio)
+
+                # Apply I2V CFG if i2v_guidance_scale != 1.0
+                # Reruns the text CFG without image conditioning (timesteps=sigma everywhere),
+                # then interpolates: output = noimg + i2v_guidance_scale * (with_img - noimg)
+                # At i2v_guidance_scale=1: output = with_img (no change). At i2v_guidance_scale=0: output = noimg.
+                if config.i2v_guidance_scale != 1.0:
+                    guided_with_img = denoised_video
+                    video_noimg = replace(video, timesteps=torch.full_like(video.timesteps, sigma))
+                    guided_noimg, _ = x0_model(video=video_noimg, audio=audio, perturbations=None)
+                    if cfg_guider.enabled() and v_ctx_neg is not None:
+                        video_noimg_neg = replace(video_noimg, context=v_ctx_neg)
+                        neg_noimg, _ = x0_model(video=video_noimg_neg, audio=audio_neg, perturbations=None)
+                        guided_noimg = guided_noimg + cfg_guider.delta(guided_noimg, neg_noimg)
+                    denoised_video = guided_noimg + config.i2v_guidance_scale * (guided_with_img - guided_noimg)
 
                 # Apply STG if stg_scale != 0.0
                 if stg_guider.enabled() and stg_perturbation_config is not None:

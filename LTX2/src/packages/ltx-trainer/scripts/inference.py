@@ -283,6 +283,12 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         default=None,
         help="Save raw patchified latent to .pt file (for stage 2 upscaling)",
     )
+    parser.add_argument(
+        "--i2v-guidance-scale",
+        type=float,
+        default=1.0,
+        help="I2V guidance scale (1.0=disabled, >1 amplifies image conditioning, 4 passes when enabled)",
+    )
 
     # Device arguments
     parser.add_argument(
@@ -403,6 +409,7 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         stg_blocks=args.stg_blocks,
         stg_mode=args.stg_mode,
         save_latent_path=args.save_latent,
+        i2v_guidance_scale=args.i2v_guidance_scale,
     )
 
     # Generate with progress bar

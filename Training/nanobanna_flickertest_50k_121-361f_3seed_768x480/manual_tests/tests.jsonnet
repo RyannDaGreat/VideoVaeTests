@@ -1,14 +1,21 @@
 // ── Shared defaults ─────────────────────────────────────────────────────────
 local defaults = {
-  num_frames: 121,
-  width: 1152,
-  height: 736,
-  num_diffusion_steps: 20,
   seed: 42,  // int or "random" (system-entropy); controls both diffusion noise and keyframe selection
+  num_frames: 121,
+  width: 1152, // Must be divisible by 32
+  height: 736, // Must be divisible by 32
   keyframes: "random 8",  // list of ints, or "random N" string (randomness controlled by seed)
+  num_diffusion_steps: 20,
+  guidance_scale: 4.0,  // text CFG (default 4.0); 1.0=disabled
+  i2v_guidance_scale: 1.0,  // image conditioning CFG (default 1.0=disabled, no extra passes); >1 amplifies image guidance (4 passes when both enabled)
   ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes
   stage_2: { enabled: true },
   batch_title: "kf_sweep_%s_%dx%d_%dstep" % [self.batch_name, self.width, self.height, self.num_diffusion_steps],
+};
+
+local res_480p = {
+  width: 736,
+  height: 480,
 };
 
 // ── Subject mixins (compose with defaults via +) ────────────────────────────
@@ -27,24 +34,47 @@ local subjects = {
   },
   snowdog: {
     batch_name: "snowdog",
-    input_video: "raw_inputs/dogrun.mp4",
+    input_video: "raw_inputs/dogrun_slomo4x.mp4",
     first_frame: "raw_inputs/dogrun_snow_firstframe.png",
     caption: "A Jack Russell bounds through deep powder along an icy shoreline, kicking up white snow with every stride. The freezing winter ocean churns in the background.",
   },
 };
 
-// ── Keyframe sweep generator ────────────────────────────────────────────────
-local kf_counts = [8, 16, 32, 44, 56, 64, 72, 80];
-local kf_counts = [4, 6, 8, 12, 16, 20, 26, 32];
-
-local make_tests(config) = [
-  config {
-    name: "%df_%dkf_%dx%d_s%d_i%d" % [config.num_frames, kf_counts[i], config.width, config.height, config.seed, i],
-    keyframes: "random %d" % kf_counts[i],  // overrides default keyframes
-    seed: 'random',
-  }
-  for i in std.range(0, std.length(kf_counts) - 1)
+// ── Sweep definitions (list of per-test override dicts) ─────────────────────
+local kf_sweep = [
+  { keyframes: "random 4" },
+  { keyframes: "random 8" },
+  { keyframes: "random 16" },
+  { keyframes: "random 32" },
+  { keyframes: "random 44" },
+  { keyframes: "random 64" },
+  { keyframes: "random 72" },
+  { keyframes: "random 80" },
 ];
 
+local i2v_sweep = [
+  { i2v_guidance_scale: 1 },
+  { i2v_guidance_scale: 2 },
+  { i2v_guidance_scale: 3 },
+  { i2v_guidance_scale: 4 },
+  { i2v_guidance_scale: 5 },
+  { i2v_guidance_scale: 6 },
+  { i2v_guidance_scale: 7 },
+  { i2v_guidance_scale: 8 },
+];
+
+// ── Test generator (applies a sweep to a base config) ───────────────────────
+local make_tests(config, sweep) = [
+  config + sweep[i] + {
+    name: "%s_%d" % [config.batch_name, i],
+  }
+  for i in std.range(0, std.length(sweep) - 1)
+];
+
+local overrides = {
+  // i2v_guidance_scale: 4,
+  keyframes: "random 32",  // list of ints, or "random N" string (randomness controlled by seed)
+} + res_480p;
+
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-make_tests(defaults + subjects.fish)
+make_tests(defaults + subjects.snowdog + overrides, i2v_sweep)
