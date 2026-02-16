@@ -357,9 +357,10 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     batch_dir = OUTPUTS_DIR / batch_dirname
     batch_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save resolved tests as vanilla JSON into the batch folder for archival
+    # Save resolved tests as vanilla JSON + source jsonnet for archival
     with open(batch_dir / "tests.json", "w") as f:
         json.dump(tests, f, indent=2)
+    shutil.copy2(str(TESTS_JSONNET), str(batch_dir / "tests.jsonnet"))
 
     # Generate references into the batch folder
     ref_dir = generate_references(batch_dir=batch_dir)
