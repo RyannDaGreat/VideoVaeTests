@@ -30,16 +30,19 @@ Usage:
 
 import json
 import os
+import platform
 import random
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import _jsonnet
 import cv2
 import numpy as np
 import fire
+import torch
 
 sys.path.insert(0, "/root/CleanCode")
 import rp
@@ -237,6 +240,128 @@ def make_batch_dirname(batch_title, step_name):
     return f"{batch_title}_{step_name}"
 
 
+def format_duration(seconds):
+    """
+    Format a duration in seconds to a human-readable string.
+
+    Pure function — no side effects.
+
+    >>> format_duration(0.5)
+    '500ms'
+    >>> format_duration(65.3)
+    '1m 5s'
+    >>> format_duration(3661)
+    '1h 1m 1s'
+    """
+    if seconds < 1:
+        return f"{seconds * 1000:.0f}ms"
+    s = int(seconds)
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}m {s}s"
+    h, m = divmod(m, 60)
+    return f"{h}h {m}m {s}s"
+
+
+def collect_run_metadata(checkpoint_path, batch_dir):
+    """
+    Collect machine, environment, and git metadata for archival.
+
+    Pure function — reads system state but has no side effects.
+    """
+    # Timestamps
+    now = rp.get_current_date()
+    timestamps = {
+        "utc": rp.format_date(now, "utc"),
+        "est": rp.format_date(now, "est"),
+        "pst": rp.format_date(now, "pst"),
+        "epoch": time.time(),
+    }
+
+    # Machine
+    env = os.environ
+    machine = {
+        "hostname": env.get("BD_HOSTNAME", platform.node()),
+        "ip": env.get("BD_IP", env.get("EC2_LOCAL_IPV4", "")),
+        "instance_name": env.get("CLARA_NAME", ""),
+        "cluster": env.get("NETFLIX_CLUSTER", ""),
+        "availability_zone": env.get("EC2_AVAILABILITY_ZONE", ""),
+        "docker_image": env.get("BD_IMAGE_NAME", ""),
+        "docker_image_version": env.get("BD_IMAGE_VERSION", ""),
+        "docker_buildtime": env.get("BD_IMAGE_BUILDTIME", ""),
+    }
+
+    # GPU info
+    try:
+        gpu_names = [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
+        gpu_mem = [f"{torch.cuda.get_device_properties(i).total_mem / 1e9:.1f} GiB" for i in range(torch.cuda.device_count())]
+    except Exception:
+        gpu_names, gpu_mem = [], []
+    gpus = {
+        "count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
+        "models": gpu_names,
+        "vram": gpu_mem,
+    }
+
+    # Environment
+    environment = {
+        "python_version": platform.python_version(),
+        "torch_version": torch.__version__,
+        "cuda_version": torch.version.cuda or "",
+        "cuda_home": env.get("CUDA_HOME", ""),
+        "conda_env": env.get("CONDA_DEFAULT_ENV", ""),
+        "conda_prefix": env.get("CONDA_PREFIX", ""),
+        "uv_venv": str(Path(sys.executable).parent.parent),
+    }
+
+    # Resources
+    resources = {
+        "num_gpu": env.get("TITUS_NUM_GPU", ""),
+        "num_cpu": env.get("TITUS_NUM_CPU", ""),
+        "mem_mb": env.get("TITUS_NUM_MEM", ""),
+    }
+
+    # Git
+    try:
+        git_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=str(REPO_ROOT),
+        ).decode().strip()
+    except Exception:
+        git_commit = ""
+    try:
+        uncommitted = subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=str(REPO_ROOT),
+        ).decode().strip().splitlines()
+    except Exception:
+        uncommitted = []
+
+    git = {
+        "commit": git_commit,
+        "uncommitted_files": uncommitted,
+    }
+
+    # Paths
+    paths = {
+        "checkpoint": str(checkpoint_path),
+        "batch_dir": str(batch_dir),
+        "repo_root": str(REPO_ROOT),
+        "ltx_trainer": str(LTX_TRAINER),
+    }
+
+    return {
+        "timestamps": timestamps,
+        "machine": machine,
+        "gpus": gpus,
+        "environment": environment,
+        "resources": resources,
+        "git": git,
+        "paths": paths,
+        "timings": {},  # filled in during run
+    }
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Video I/O Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -375,6 +500,8 @@ def generate_references(batch_dir=None):
 
 def run(checkpoint: str = None, skip_existing: bool = False):
     """Generate references, then run inference on all tests. Saves to archival folder."""
+    run_start = time.time()
+
     # Ensure models are localized
     print("Ensuring models are downloaded and localized...")
     subprocess.run([sys.executable, str(DOWNLOAD_MODELS)], check=True)
@@ -419,6 +546,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     print(f"  Output: {batch_dir}")
     print(f"{'=' * 70}\n")
 
+    stage1_start = time.time()
     active = []
     for i, t in enumerate(tests):
         gpu_id = i % NUM_GPUS
@@ -468,6 +596,9 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         p.wait()
         print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n}")
 
+    stage1_duration = time.time() - stage1_start
+    print(f"\n  Stage 1 total: {format_duration(stage1_duration)} ({stage1_duration*1000:.0f}ms)")
+
     # Stage 2 upscaling (if any tests have it enabled)
     stage2_tests = [(i, t) for i, t in enumerate(tests) if t.get("stage_2", {}).get("enabled", False)]
     if stage2_tests:
@@ -485,6 +616,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         source_aspect = source_w / source_h
         print(f"  Source aspect ratio: {source_aspect:.4f} ({source_w}x{source_h})")
 
+        stage2_start = time.time()
         active = []
         for i, t in stage2_tests:
             gpu_id = i % NUM_GPUS
@@ -529,7 +661,31 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             p.wait()
             print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n} (stage 2)")
 
-    print(f"\nOutputs in: {batch_dir}")
+        stage2_duration = time.time() - stage2_start
+        print(f"\n  Stage 2 total: {format_duration(stage2_duration)} ({stage2_duration*1000:.0f}ms)")
+
+    # Save metadata
+    run_duration = time.time() - run_start
+    metadata = collect_run_metadata(checkpoint, batch_dir)
+    metadata["timings"] = {
+        "stage1_seconds": stage1_duration,
+        "stage1_human": format_duration(stage1_duration),
+        "stage1_ms": stage1_duration * 1000,
+    }
+    if stage2_tests:
+        metadata["timings"]["stage2_seconds"] = stage2_duration
+        metadata["timings"]["stage2_human"] = format_duration(stage2_duration)
+        metadata["timings"]["stage2_ms"] = stage2_duration * 1000
+    metadata["timings"]["total_seconds"] = run_duration
+    metadata["timings"]["total_human"] = format_duration(run_duration)
+    metadata["timings"]["total_ms"] = run_duration * 1000
+
+    with open(batch_dir / "metadata.json", "w") as f:
+        json.dump(metadata, f, indent=2)
+    print(f"\nMetadata saved to {batch_dir / 'metadata.json'}")
+
+    print(f"Total run time: {format_duration(run_duration)}")
+    print(f"Outputs in: {batch_dir}")
 
 
 if __name__ == "__main__":
