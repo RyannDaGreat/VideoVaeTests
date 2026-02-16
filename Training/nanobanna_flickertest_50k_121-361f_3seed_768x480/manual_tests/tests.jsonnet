@@ -8,8 +8,9 @@ local base = {
   height: 736,
   num_diffusion_steps: 100,
   seed: 42,
-  // Stage 2: upsample raw latent 2x + denoise with distilled LoRA (3 steps)
-  // Output will be 2304x1472 (2x the stage 1 resolution)
+  // Stage 2: crop pulse mask/padding in latent space, upsample 2x, denoise 3 distilled steps
+  // Output: 2048x1152 clean content (2x the 1024x576 content area, no pulse mask)
+  // Condition image: original high-res first frame at 2048x1152 anchors frame 0
   stage_2: { enabled: true },
 };
 
