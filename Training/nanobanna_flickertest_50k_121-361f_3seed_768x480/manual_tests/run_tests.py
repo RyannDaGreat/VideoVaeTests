@@ -358,8 +358,15 @@ def generate_references(batch_dir=None):
         save_video_lossless(ref_path, ref_out)
         print(f"  Generated: {ref_path}")
 
-        # Save frame 0 as condition image
-        cv2.imwrite(str(cond_path), cv2.cvtColor(ref_out[0], cv2.COLOR_RGB2BGR))
+        # Save condition image (always from clean first frame, independent of ref_first_frame)
+        cond_frame = build_reference_frame(
+            content=keyframe_img,
+            mask_value=255,
+            target_width=target_w,
+            target_height=target_h,
+            mask_px=PULSE_MASK_PX,
+        )
+        cv2.imwrite(str(cond_path), cv2.cvtColor(cond_frame, cv2.COLOR_RGB2BGR))
         print(f"  Condition: {cond_path}")
 
     print("Done generating references.")
