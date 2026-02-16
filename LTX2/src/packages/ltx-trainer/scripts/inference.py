@@ -286,8 +286,8 @@ def main() -> None:  # noqa: PLR0912, PLR0915
     parser.add_argument(
         "--i2v-guidance-scale",
         type=float,
-        default=1.0,
-        help="I2V guidance scale (1.0=disabled, >1 amplifies image conditioning, 4 passes when enabled)",
+        default=0.0,
+        help="I2V guidance scale (0.0=disabled, >0 amplifies image conditioning, 3 passes when both CFGs enabled)",
     )
 
     # Device arguments

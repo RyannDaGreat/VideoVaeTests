@@ -575,7 +575,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--num-frames", str(t.get("num_frames", 121)),
             "--num-inference-steps", str(t.get("num_diffusion_steps", 30)),
             "--guidance-scale", str(t.get("guidance_scale", 4.0)),
-            "--i2v-guidance-scale", str(t.get("i2v_guidance_scale", 1.0)),
+            "--i2v-guidance-scale", str(t.get("i2v_guidance_scale", 0.0)),
             "--seed", str(t.get("seed", 42)),
             "--skip-audio",
             "--include-reference-in-output",

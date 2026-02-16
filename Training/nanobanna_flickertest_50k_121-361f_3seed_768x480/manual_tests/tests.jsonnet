@@ -7,7 +7,7 @@ local defaults = {
   keyframes: "random 8",  // list of ints, or "random N" string (randomness controlled by seed)
   num_diffusion_steps: 20,
   guidance_scale: 4.0,  // text CFG (default 4.0); 1.0=disabled
-  i2v_guidance_scale: 1.0,  // image conditioning CFG (default 1.0=disabled, no extra passes); >1 amplifies image guidance (4 passes when both enabled)
+  i2v_guidance_scale: 0.0,  // image conditioning CFG (default 0.0=disabled, no extra passes); >0 amplifies image guidance (3 passes when both enabled)
   ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes
   stage_2: { enabled: true },
   batch_title: "kf_sweep_%s_%dx%d_%dstep" % [self.batch_name, self.width, self.height, self.num_diffusion_steps],
