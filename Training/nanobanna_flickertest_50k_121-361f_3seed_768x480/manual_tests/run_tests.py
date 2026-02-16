@@ -382,7 +382,9 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             print(f"  SKIP {name}: already exists")
             continue
 
-        latent_path = batch_dir / f"{name}_{step_name}_latent.pt"
+        latent_dir = batch_dir / "latents"
+        latent_dir.mkdir(parents=True, exist_ok=True)
+        latent_path = latent_dir / f"{name}_{step_name}.pt"
         cmd = [
             "uv", "run", "python", "scripts/inference.py",
             "--checkpoint", MODEL_CHECKPOINT,
@@ -428,7 +430,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         for i, t in stage2_tests:
             gpu_id = i % NUM_GPUS
             name = t["name"]
-            latent_path = batch_dir / f"{name}_{step_name}_latent.pt"
+            latent_path = batch_dir / "latents" / f"{name}_{step_name}.pt"
             stage2_path = batch_dir / f"{name}_{step_name}_stage2.mp4"
 
             if not latent_path.exists():

@@ -289,7 +289,10 @@ def upscale(
     _mem("after denoise")
 
     # Save denoised latent so decode can be retried without redoing diffusion
-    stage2_latent_path = str(Path(output).with_suffix(".pt"))
+    output_dir = Path(output).parent
+    latent_dir = output_dir / "latents"
+    latent_dir.mkdir(parents=True, exist_ok=True)
+    stage2_latent_path = str(latent_dir / Path(output).with_suffix(".pt").name)
     torch.save(video_state.latent.cpu(), stage2_latent_path)
     print(f"  Saved stage 2 latent: {stage2_latent_path}")
     del video_state, audio_state
