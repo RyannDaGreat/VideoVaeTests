@@ -53,7 +53,7 @@ local kf_sweep = [
 ];
 
 local i2v_sweep = [
-  { i2v_guidance_scale: 1 },
+  { i2v_guidance_scale: 0 },
   { i2v_guidance_scale: 1.00001 },
   { i2v_guidance_scale: 1.01 },
   { i2v_guidance_scale: 1.02 },

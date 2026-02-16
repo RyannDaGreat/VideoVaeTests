@@ -553,9 +553,24 @@ class ValidationSampler:
         x0_model = X0Model(self._transformer)
         print("  Transformer ready. Denoising...", flush=True)
 
+        # Pre-compute fixed noise for I2V CFG (consistent across denoising steps).
+        # i2v_cond_mask: (B, N, 1) — 1.0 at image-conditioned token positions, 0.0 elsewhere.
+        #   Derived from denoise_mask, which is set to 0 at conditioned positions by
+        #   VideoConditionByLatentIndex.apply_to() (see conditioning/types/latent_cond.py).
+        # i2v_noise: (B, N, C) — fixed Gaussian noise, same shape as the patchified latent.
+        #   Used to "un-condition" image tokens by noising them to match the current sigma.
+        #   Fixed once so the "no image" trajectory is coherent across denoising steps.
+        if config.i2v_guidance_scale != 1.0:
+            i2v_cond_mask = (video_state.denoise_mask < 1.0).float()
+            i2v_noise = torch.randn_like(video_state.latent)
+
         with torch.autocast(device_type=str(device).split(":")[0], dtype=torch.bfloat16):
             for step_idx, sigma in enumerate(sigmas[:-1]):
-                # Update modalities with current state and timesteps
+                # "video" is a Modality dataclass (see ltx_core/model/transformer/modality.py)
+                # containing: latent, timesteps, positions, context, context_mask.
+                # replace() is dataclasses.replace — creates a copy with updated fields.
+                # timesteps = sigma * denoise_mask: conditioned tokens get timestep=0
+                #   (telling the transformer "I'm clean"), unconditioned get timestep=sigma.
                 video = replace(
                     video,
                     latent=video_state.latent,
@@ -571,12 +586,19 @@ class ValidationSampler:
                         positions=audio_state.positions,
                     )
 
-                # Run model (positive pass) - X0Model returns denoised outputs
+                # Positive pass: run transformer with positive text prompt + image conditioning.
+                # x0_model wraps the transformer and converts its velocity output to a
+                # denoised x0 prediction (the "clean" video the model thinks this should be).
                 pos_video, pos_audio = x0_model(video=video, audio=audio, perturbations=None)
                 denoised_video, denoised_audio = pos_video, pos_audio
 
-                # Apply text CFG if guidance_scale != 1.0
+                # Text CFG: run a second pass with the negative prompt (e.g. "worst quality"),
+                # same image conditioning. The delta between positive and negative predictions
+                # is amplified by guidance_scale and added to steer toward the positive prompt.
+                # cfg_guider.delta(cond, uncond) = (scale-1) * (cond - uncond)
                 if cfg_guider.enabled() and v_ctx_neg is not None:
+                    # replace(video, context=v_ctx_neg): same latent/timesteps/positions,
+                    # but swap the text embedding from positive to negative prompt.
                     video_neg = replace(video, context=v_ctx_neg)
                     audio_neg = replace(audio, context=a_ctx_neg) if audio is not None else None
                     neg_video, neg_audio = x0_model(video=video_neg, audio=audio_neg, perturbations=None)
@@ -585,18 +607,58 @@ class ValidationSampler:
                     if audio is not None and denoised_audio is not None:
                         denoised_audio = denoised_audio + cfg_guider.delta(pos_audio, neg_audio)
 
-                # Apply I2V CFG if i2v_guidance_scale != 1.0
-                # Reruns the text CFG without image conditioning (timesteps=sigma everywhere),
-                # then interpolates: output = noimg + i2v_guidance_scale * (with_img - noimg)
-                # At i2v_guidance_scale=1: output = with_img (no change). At i2v_guidance_scale=0: output = noimg.
+                # ── I2V CFG: image conditioning guidance ──────────────────────
+                # Computes "what would the model produce WITHOUT the image anchor?"
+                # then steers toward the image-conditioned result.
+                #
+                # Math:
+                #   guided_with_img  = text-CFG'd result WITH image (computed above)
+                #   guided_noimg     = text-CFG'd result WITHOUT image (computed below)
+                #   output = guided_noimg + i2v_scale * (guided_with_img - guided_noimg)
+                #
+                # At i2v_scale=1: output = guided_with_img (no change, block is skipped).
+                # At i2v_scale=0: image has no influence.
+                # At i2v_scale>1: amplifies the image's effect.
+                #
+                # Pass count: adds 2 extra forward passes (4 total with text CFG).
+                #             When text CFG is disabled, adds 1 pass (2 total).
                 if config.i2v_guidance_scale != 1.0:
+                    # Save the image-conditioned result before we overwrite denoised_video
                     guided_with_img = denoised_video
-                    video_noimg = replace(video, timesteps=torch.full_like(video.timesteps, sigma))
+
+                    # Build "no image" version of the latent:
+                    # video_clean_state.latent: (B, N, C) patchified latent with clean image
+                    #   tokens at conditioned positions (set by _apply_image_conditioning).
+                    # noised_cond_tokens: forward-diffuse those clean tokens to the current
+                    #   noise level (clean + noise * sigma), simulating "no conditioning".
+                    # noimg_latent: same as video.latent everywhere EXCEPT at conditioned
+                    #   positions, where clean tokens are replaced with noised versions.
+                    # video_noimg: a Modality with noimg_latent and timesteps=sigma everywhere
+                    #   (instead of timesteps=0 at conditioned positions), so the transformer
+                    #   treats ALL tokens as equally noisy — no "clean anchor" at frame 0.
+                    noised_cond_tokens = video_clean_state.latent + i2v_noise * sigma
+                    noimg_latent = video.latent * (1 - i2v_cond_mask) + noised_cond_tokens * i2v_cond_mask
+                    video_noimg = replace(
+                        video,
+                        latent=noimg_latent,
+                        timesteps=torch.full_like(video.timesteps, sigma),
+                    )
+
+                    # x0_model: wraps self._transformer, converts velocity predictions to
+                    #   denoised x0 estimates (see ltx_core/model/transformer/x0_model.py).
+                    # guided_noimg: the positive-prompt prediction without image anchor.
                     guided_noimg, _ = x0_model(video=video_noimg, audio=audio, perturbations=None)
+
+                    # Apply text CFG to the no-image pass too (same delta as above).
+                    # cfg_guider.delta(cond, uncond) = (scale-1) * (cond - uncond)
+                    #   from ltx_core/components/guiders.py CFGGuider.
                     if cfg_guider.enabled() and v_ctx_neg is not None:
+                        # video_noimg_neg: same no-image latent but with the negative text prompt
                         video_noimg_neg = replace(video_noimg, context=v_ctx_neg)
                         neg_noimg, _ = x0_model(video=video_noimg_neg, audio=audio_neg, perturbations=None)
                         guided_noimg = guided_noimg + cfg_guider.delta(guided_noimg, neg_noimg)
+
+                    # Final I2V guidance: interpolate between no-image and with-image results
                     denoised_video = guided_noimg + config.i2v_guidance_scale * (guided_with_img - guided_noimg)
 
                 # Apply STG if stg_scale != 0.0
