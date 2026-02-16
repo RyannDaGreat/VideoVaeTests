@@ -636,6 +636,11 @@ class ValidationSampler:
                     # video_noimg: a Modality with noimg_latent and timesteps=sigma everywhere
                     #   (instead of timesteps=0 at conditioned positions), so the transformer
                     #   treats ALL tokens as equally noisy — no "clean anchor" at frame 0.
+                    # NOTE: we only override latent and timesteps in the Modality (which is
+                    #   the transformer's input). We do NOT modify video_state.denoise_mask.
+                    #   The denoise_mask is used later in post-processing (line ~655) to force
+                    #   clean tokens back, but that runs on the FINAL denoised_video after I2V
+                    #   interpolation — it doesn't affect the I2V delta computation itself.
                     noised_cond_tokens = video_clean_state.latent + i2v_noise * sigma
                     noimg_latent = video.latent * (1 - i2v_cond_mask) + noised_cond_tokens * i2v_cond_mask
                     video_noimg = replace(
