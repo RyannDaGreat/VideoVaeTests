@@ -44,9 +44,7 @@ local subjects = {
     first_frame: "raw_inputs/horse_armor_firstframe.png",
     caption: |||
       Cinematic slow-motion tracking shot, keeping the subject perfectly centered in a medium-wide frame under bright, natural sunlight coming from slightly above and in front of the lens. The camera glides smoothly alongside a magnificent, highly muscular solid black horse galloping powerfully from left to right across a soft, light-tan sandy riding arena.
-
       The horse is heavily outfitted in intricate, beautiful Mongolian-style armor, featuring a detailed leather lamellar neck guard and chest piece with gleaming metal accents, alongside an ornate traditional saddle and matching bridle. Where exposed, its sleek coat reflects the bright daylight, highlighting its defined musculature, while its long, thick black tail flows dramatically in the air. Small, distinct plumes of dust kick up from its rear hooves, which feature subtle white markings, as they strike the sand.
-
       The background features shallow depth of field, maintaining a warm, dusty, cinematic atmosphere. Behind a barrier of silver, galvanized steel horizontal pipe fencing, there is a long white painted cinderblock wall, a tan building with a brown pitched roof, and lush green foliage beneath a clear pale blue sky. As the camera tracks the horse, a small green plastic step stool briefly passes through the frame near the fence line, grounding the epic action in a realistic environment.
     |||,
   },
