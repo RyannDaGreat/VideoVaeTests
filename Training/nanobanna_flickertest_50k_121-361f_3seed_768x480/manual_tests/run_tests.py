@@ -828,18 +828,12 @@ def run(checkpoint: str = None, skip_existing: bool = False):
 
             # Comparison video (immediately after this test's stage 2)
             if t.get("save_stage2_comparison_video", False) and stage2_path.exists():
-                raw_input = HERE / t["input_video"]
-                if not raw_input.exists():
-                    raw_input = batch_dir / "raw_inputs" / raw_input.name
-                comp_dir = batch_dir / "comparison_videos"
-                comp_dir.mkdir(parents=True, exist_ok=True)
-                comp_path = comp_dir / f"{name}_{step_name}_comparison.mp4"
-                if skip_existing and comp_path.exists():
-                    print(f"  [GPU {gpu_id}] SKIP comparison: {name}")
-                else:
-                    print(f"  [GPU {gpu_id}] Comparison: {name}")
-                    save_hconcat_video([str(raw_input), str(stage2_path)], str(comp_path))
+                print(f"  [GPU {gpu_id}] Comparison: {name}")
+                comp_path = _make_one_comparison(stage2_path, HERE / t["input_video"], batch_dir)
+                if comp_path:
                     print(f"  [GPU {gpu_id}] Done: {name} (comparison)")
+                else:
+                    print(f"  [GPU {gpu_id}] SKIP comparison: {name} (raw input not found)")
 
     # Launch all GPU workers in parallel (each is a thread running its queue)
     import threading
@@ -877,6 +871,29 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     print(f"Outputs in: {batch_dir}")
 
 
+def _make_one_comparison(stage2_path, raw_input_video, batch_dir):
+    """
+    Create a single side-by-side comparison video from a stage 2 output and raw input.
+
+    Comparison path is derived from stage2 path: *_stage2.mp4 -> *_comparison.mp4
+    in the comparison_videos/ subfolder.
+
+    Returns the comparison path, or None if raw input not found.
+    """
+    stage2_path = Path(stage2_path)
+    raw_input = Path(raw_input_video)
+    if not raw_input.exists():
+        raw_input = Path(batch_dir) / "raw_inputs" / raw_input.name
+    if not raw_input.exists():
+        return None
+
+    comp_dir = Path(batch_dir) / "comparison_videos"
+    comp_dir.mkdir(parents=True, exist_ok=True)
+    comp_path = comp_dir / stage2_path.name.replace("_stage2.mp4", "_comparison.mp4")
+    save_hconcat_video([str(raw_input), str(stage2_path)], str(comp_path))
+    return comp_path
+
+
 def make_comparison_videos(batch_dir: str):
     """
     Generate side-by-side comparison videos for all stage 2 outputs in a batch directory.
@@ -895,14 +912,6 @@ def make_comparison_videos(batch_dir: str):
     with open(tests_json) as f:
         tests = json.load(f)
 
-    comp_dir = batch_dir / "comparison_videos"
-    comp_dir.mkdir(parents=True, exist_ok=True)
-
-    # Find the step name from existing mp4s
-    mp4s = list(batch_dir.glob("*.mp4"))
-    if not mp4s:
-        raise FileNotFoundError(f"No mp4 files in {batch_dir}")
-
     stage2_files = sorted(batch_dir.glob("*stage2*.mp4"))
     if not stage2_files:
         raise FileNotFoundError(f"No stage2 mp4 files in {batch_dir}")
@@ -910,27 +919,22 @@ def make_comparison_videos(batch_dir: str):
     print(f"Found {len(stage2_files)} stage 2 outputs in {batch_dir}")
 
     for s2 in stage2_files:
-        # Find matching test by name prefix
-        s2_name = s2.stem  # e.g. "boat_0_cdi1_kf40_step_10250_stage2"
+        s2_name = s2.stem
         matching = [t for t in tests if s2_name.startswith(t["name"])]
         if not matching:
             print(f"  SKIP {s2.name}: no matching test in tests.json")
             continue
         t = matching[0]
-        raw_input = str(HERE / t["input_video"])
-        if not Path(raw_input).exists():
-            # Try raw_inputs subfolder in batch dir
-            raw_input = str(batch_dir / "raw_inputs" / Path(t["input_video"]).name)
-        if not Path(raw_input).exists():
-            print(f"  SKIP {s2.name}: raw input not found")
-            continue
 
-        comp_path = comp_dir / s2.name.replace("_stage2.mp4", "_comparison.mp4")
-        print(f"  {s2.name} -> {comp_path.name}")
-        save_hconcat_video([raw_input, str(s2)], str(comp_path))
-        print(f"    Done")
+        raw_input = HERE / t["input_video"]
+        print(f"  {s2.name} ...", end=" ")
+        comp_path = _make_one_comparison(s2, raw_input, batch_dir)
+        if comp_path:
+            print(f"-> {comp_path.name}")
+        else:
+            print("SKIP (raw input not found)")
 
-    print(f"\nComparison videos saved to {comp_dir}")
+    print(f"\nComparison videos saved to {batch_dir / 'comparison_videos'}")
 
 
 if __name__ == "__main__":
