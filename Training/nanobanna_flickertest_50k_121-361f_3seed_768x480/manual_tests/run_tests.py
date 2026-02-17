@@ -145,6 +145,17 @@ def build_reference_frame(content, mask_value, target_width, target_height, mask
 
     Returns:
         HWC uint8 array of shape (target_height, target_width, 3).
+
+    >>> content = np.full((4, 6, 3), 128, dtype=np.uint8)
+    >>> frame = build_reference_frame(content, 255, 10, 6, 2)
+    >>> frame.shape
+    (6, 10, 3)
+    >>> frame[0, 0, 0]  # pulse mask = 255
+    255
+    >>> frame[2, 4, 0]  # right-aligned content = 128
+    128
+    >>> frame[0, 3, 0]  # top-left padding = 0
+    0
     """
     frame = np.zeros((target_height, target_width, 3), dtype=np.uint8)
     ch, cw = content.shape[:2]
@@ -388,6 +399,112 @@ def save_video_lossless(path, frames, fps=25):
 #  Core Pipeline
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _find_varying_keys(tests):
+    """
+    Find which keys have different values across a batch of test configs.
+
+    Returns a list of keys whose values are not identical across all tests.
+    Skips 'name' and 'seed' (always expected to differ).
+
+    Pure function — no side effects.
+
+    >>> _find_varying_keys([{"a": 1, "b": 2}, {"a": 1, "b": 3}])
+    ['b']
+    >>> _find_varying_keys([{"a": 1, "b": 2}, {"a": 1, "b": 2}])
+    []
+    """
+    if len(tests) <= 1:
+        return []
+    skip = {"name", "seed", "batch_title"}
+    all_keys = set()
+    for t in tests:
+        all_keys.update(t.keys())
+    varying = []
+    for k in sorted(all_keys - skip):
+        values = [repr(t.get(k)) for t in tests]
+        if len(set(values)) > 1:
+            varying.append(k)
+    return varying
+
+
+# Short labels for varying keys in filenames
+_KEY_LABELS = {
+    "keyframes": "kf",
+    "guidance_scale": "cfg",
+    "num_diffusion_steps": "st",
+    "num_frames": "f",
+    "width": "w",
+    "height": "h",
+    "i2v_guidance_scale": "i2v",
+    "cfg_drop_image": "cdi",
+    "ref_first_frame": "rff",
+}
+
+
+def _format_value_for_name(key, value):
+    """
+    Format a config value for inclusion in a filename.
+
+    Pure function — no side effects.
+
+    >>> _format_value_for_name("keyframes", [0, 5, 10, 20])
+    '4'
+    >>> _format_value_for_name("keyframes", "random 32")
+    '32'
+    >>> _format_value_for_name("guidance_scale", 4.0)
+    '4'
+    >>> _format_value_for_name("guidance_scale", 1.25)
+    '1.25'
+    >>> _format_value_for_name("guidance_scale", 1.50)
+    '1.5'
+    >>> _format_value_for_name("guidance_scale", 1.10)
+    '1.1'
+    >>> _format_value_for_name("guidance_scale", 0.125)
+    '.12'
+    >>> _format_value_for_name("cfg_drop_image", True)
+    '1'
+    """
+    if key == "keyframes":
+        if isinstance(value, list):
+            return str(len(value))
+        if isinstance(value, str) and value.startswith("random "):
+            return value.split()[1]
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, float):
+        if value == int(value):
+            return str(int(value))
+        return f"{value:.2f}".rstrip("0").lstrip("0")
+    return str(value)
+
+
+def _generate_test_names(tests):
+    """
+    Generate descriptive names for tests based on which fields vary across the batch.
+
+    Format: <batch_name>_<index>_<varying_key1><value1>_<varying_key2><value2>_...
+    Only fields that differ across the batch are included.
+
+    Pure function — no side effects (mutates test dicts' "name" field in place).
+
+    >>> tests = [
+    ...     {"batch_name": "fish", "guidance_scale": 2, "keyframes": [0, 5]},
+    ...     {"batch_name": "fish", "guidance_scale": 4, "keyframes": [0, 5]},
+    ... ]
+    >>> _generate_test_names(tests)
+    >>> [t["name"] for t in tests]
+    ['fish_0_cfg2', 'fish_1_cfg4']
+    """
+    varying = _find_varying_keys(tests)
+    for i, t in enumerate(tests):
+        parts = [t.get("batch_name", "test"), str(i)]
+        for k in varying:
+            label = _KEY_LABELS.get(k, k)
+            val = _format_value_for_name(k, t.get(k))
+            parts.append(f"{label}{val}")
+        t["name"] = "_".join(parts)
+
+
 def _load_tests():
     """
     Load tests from .jsonnet and resolve all string shorthands to concrete values.
@@ -395,6 +512,7 @@ def _load_tests():
     Resolves (in order):
     - seed: int or "random" → concrete int
     - keyframes: list or "random N" → concrete sorted list (uses resolved seed)
+    - name: auto-generated from batch_name + index + varying fields
     """
     raw_json = _jsonnet.evaluate_file(str(TESTS_JSONNET))
     tests = json.loads(raw_json)
@@ -405,6 +523,7 @@ def _load_tests():
             t.get("num_frames", 121),
             t["seed"],
         )
+    _generate_test_names(tests)
     return tests
 
 
@@ -575,7 +694,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--num-frames", str(t.get("num_frames", 121)),
             "--num-inference-steps", str(t.get("num_diffusion_steps", 30)),
             "--guidance-scale", str(t.get("guidance_scale", 4.0)),
-            "--i2v-guidance-scale", str(t.get("i2v_guidance_scale", 0.0)),
+            *(["--cfg-drop-image"] if t.get("cfg_drop_image", False) else []),
             "--seed", str(t.get("seed", 42)),
             "--skip-audio",
             "--include-reference-in-output",
