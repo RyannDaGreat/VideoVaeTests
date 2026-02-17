@@ -607,7 +607,11 @@ def generate_references(batch_dir=None):
         keyframe_img = rp.load_image(str(HERE / t["first_frame"]), use_cache=False)
         keyframe_img = rp.as_byte_image(rp.as_rgb_image(keyframe_img, copy=False), copy=False)
 
-        # Take first N frames
+        # Take first N frames (clip if source is shorter, round down to k*8+1)
+        if len(video) < num_frames:
+            clipped = ((len(video) - 1) // 8) * 8 + 1  # nearest valid frame count: k*8+1
+            print(f"    WARNING: source only has {len(video)} frames, clipping num_frames from {num_frames} to {clipped}")
+            num_frames = clipped
         print(f"    Taking first {num_frames} of {len(video)} frames...")
         video = np.array(video[:num_frames])
 
