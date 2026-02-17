@@ -284,10 +284,10 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         help="Save raw patchified latent to .pt file (for stage 2 upscaling)",
     )
     parser.add_argument(
-        "--i2v-guidance-scale",
-        type=float,
-        default=0.0,
-        help="I2V guidance scale (0.0=disabled, >0 amplifies image conditioning, 3 passes when both CFGs enabled)",
+        "--cfg-drop-image",
+        action="store_true",
+        default=False,
+        help="CFG negative pass drops image anchor (fully unconditional baseline, STIV JIT-CFG style)",
     )
 
     # Device arguments
@@ -409,7 +409,7 @@ def main() -> None:  # noqa: PLR0912, PLR0915
         stg_blocks=args.stg_blocks,
         stg_mode=args.stg_mode,
         save_latent_path=args.save_latent,
-        i2v_guidance_scale=args.i2v_guidance_scale,
+        cfg_drop_image=args.cfg_drop_image,
     )
 
     # Generate with progress bar
