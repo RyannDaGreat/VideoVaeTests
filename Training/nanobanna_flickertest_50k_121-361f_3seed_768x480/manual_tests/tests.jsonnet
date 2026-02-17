@@ -8,7 +8,7 @@ local defaults = {
   keyframes: "random 8",  // list of ints, "random N" (randomness controlled by seed), or "uniform N" (evenly spaced first-to-last)
   num_diffusion_steps: 30,
   guidance_scale: 4.0,  // text CFG (default 4.0); 1.0=disabled
-  cfg_drop_image: 1,  // 0=standard CFG (neg pass keeps image), 1=neg pass drops image tokens entirely, 0-1 blends both (3 passes)
+  cfg_drop_image: 2,  // 0=standard CFG (neg pass keeps image), 1=neg pass drops image tokens entirely, 0-1 blends both (3 passes)
   ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes. Empirically, not sure it matters...
   stage_2: { enabled: true },
   save_stage2_comparison_video: true,  // save raw input vs stage 2 output side-by-side comparison
@@ -154,7 +154,7 @@ local make_tests(config, sweep) = [
 local sweep = [{}];  // single entry, no overrides (defaults handle everything)
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-local base = defaults + res_720p + { keyframes: "random 32" };
+local base = defaults + res_720p + { keyframes: "random 16" };
 make_tests(base + subjects.horse_armor_with_mongol, sweep)
 + make_tests(base + subjects.horse_robot, sweep)
 + make_tests(base + subjects.horse_grass_field, sweep)
