@@ -5,7 +5,7 @@ local defaults = {
   width: 1152, // Must be divisible by 32
   height: 736, // Must be divisible by 32
   keyframes: "random 8",  // list of ints, "random N" (randomness controlled by seed), or "uniform N" (evenly spaced first-to-last)
-  num_diffusion_steps: 20,
+  num_diffusion_steps: 50,
   guidance_scale: 4.0,  // text CFG (default 4.0); 1.0=disabled
   cfg_drop_image: 1,  // 0=standard CFG (neg pass keeps image), 1=neg pass drops image tokens entirely, 0-1 blends both (3 passes)
   ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes. Empirically, not sure it matters...
@@ -72,10 +72,20 @@ local make_tests(config, sweep) = [
 local overrides = {
   keyframes: "random 40",
   height: 320, width: 512,
-  num_diffusion_steps:15,
-  
+  num_diffusion_steps: 15,
   num_frames: 121,
 };// + res_480p;
 
+// 3 configs × 3 subjects = 9 tests at original resolution (1152x736), 121 frames, cfg=4
+local subject_sweep = [
+  { keyframes: "random 40", cfg_drop_image: 1 },
+  res_480p + { keyframes: "random 80", cfg_drop_image: 1, num_frames: 241 },
+
+  // { keyframes: "random 40", cfg_drop_image: 2 },
+  // { keyframes: "random 70", cfg_drop_image: 3 },
+];
+
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-make_tests(defaults + subjects.fish + overrides, sweep)
+make_tests(defaults + subjects.boat, subject_sweep)
++ make_tests(defaults + subjects.fish, subject_sweep)
++ make_tests(defaults + subjects.snowdog, subject_sweep)

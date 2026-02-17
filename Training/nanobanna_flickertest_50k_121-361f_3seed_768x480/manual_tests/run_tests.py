@@ -428,7 +428,7 @@ def _find_varying_keys(tests):
     """
     if len(tests) <= 1:
         return []
-    skip = {"name", "seed", "batch_title"}
+    skip = {"name", "seed", "batch_title", "batch_name", "caption", "input_video", "first_frame", "stage_2"}
     all_keys = set()
     for t in tests:
         all_keys.update(t.keys())
@@ -452,6 +452,33 @@ _KEY_LABELS = {
     "cfg_drop_image": "cdi",
     "ref_first_frame": "rff",
 }
+
+
+def _truncate_middle(s, max_len=30):
+    """
+    Truncate a string from the middle using a Unicode ellipsis, preserving both ends.
+
+    If the string fits within max_len, it's returned unchanged.
+
+    Pure function — no side effects.
+
+    >>> _truncate_middle("short", 30)
+    'short'
+    >>> _truncate_middle("abcdefghijklmnopqrstuvwxyz0123456789", 20)
+    'abcdefghi…0123456789'
+    >>> _truncate_middle("hello world", 5)
+    'he…ld'
+    >>> _truncate_middle("ab", 1)
+    '…'
+    """
+    if len(s) <= max_len:
+        return s
+    if max_len <= 1:
+        return "…"
+    # Split available space evenly: left gets half (rounded down), right gets the rest
+    left = (max_len - 1) // 2
+    right = max_len - 1 - left
+    return s[:left] + "…" + s[-right:]
 
 
 def _format_value_for_name(key, value):
@@ -490,7 +517,8 @@ def _format_value_for_name(key, value):
         if value == int(value):
             return str(int(value))
         return f"{value:.2f}".rstrip("0").lstrip("0")
-    return str(value)
+    result = str(value)
+    return _truncate_middle(result, 30)
 
 
 def _generate_test_names(tests):
