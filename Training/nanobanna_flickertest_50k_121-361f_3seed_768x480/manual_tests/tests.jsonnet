@@ -150,17 +150,33 @@ local make_tests(config, sweep) = [
   for i in std.range(0, std.length(sweep) - 1)
 ];
 
-// One test per subject at 720p with 32 keyframes — all horses except horse_armor
-local sweep = [{}];  // single entry, no overrides (defaults handle everything)
+// Overnight sweep: cdi [0,1,2,4] × res [480p,720p] × kf [8,16,32,40,64] × all subjects
+// 4 × 2 × 5 × 8 = 320 tests. 30 diffusion steps. 480p first.
+local cdi_values = [0, 1, 2, 4];
+local kf_values = [8, 16, 32, 40, 64];
+local resolutions = [res_480p, res_720p];
+
+local sweep = [
+  res + { cfg_drop_image: cdi, keyframes: "random %d" % kf }
+  for res in resolutions
+  for cdi in cdi_values
+  for kf in kf_values
+];
+
+local all_subjects = [
+  subjects.horse_armor_with_mongol,  // priority — process first
+  subjects.horse_armor,
+  subjects.horse_robot,
+  subjects.horse_grass_field,
+  subjects.horse_nyancat,
+  subjects.horse_stadium,
+  subjects.minecraft_horse_stable,
+  subjects.minecraft_horse_steve_stable,
+];
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-local base = defaults + res_720p + { keyframes: "random 16" };
-make_tests(base + subjects.horse_armor_with_mongol, sweep)
-+ make_tests(base + subjects.horse_robot, sweep)
-+ make_tests(base + subjects.horse_grass_field, sweep)
-+ make_tests(base + subjects.horse_nyancat, sweep)
-+ make_tests(base + subjects.horse_stadium, sweep)
-+ make_tests(base + subjects.minecraft_horse_stable, sweep)
-// + make_tests(base + subjects.minecraft_horse_saddle_stable, sweep)
-+ make_tests(base + subjects.minecraft_horse_steve_stable, sweep)
-+ make_tests(base + subjects.minecraft_horse_steve_meadow, sweep)
+local base = defaults + { num_diffusion_steps: 30 };
+std.flatMap(
+  function(subj) make_tests(base + subj, sweep),
+  all_subjects,
+)
