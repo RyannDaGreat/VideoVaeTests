@@ -61,7 +61,7 @@ local subjects = {
   horse_robot: {
     batch_name: "horse_robot",
     input_video: "raw_inputs/horse_slowmo.mp4",
-    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    first_frame: "raw_inputs/horse_robot_firstframe.png",
     caption: |||
       A wide-angle cinematic shot captures a lifelike robotic horse, constructed from high-polish brushed chrome and articulated steel plates, galloping through a dusty, sun-bleached outdoor corral. The lighting is harsh midday sun, creating sharp specular highlights on the horse's metallic flanks and deep, rhythmic shadows within the exposed gears of its joints. As the machine moves, a subtle heat haze shimmers from its internal cooling vents, and its optical sensors glow with a steady, piercing blue light.
       The camera performs a smooth lateral tracking shot, keeping pace with the robot's powerful stride at a low angle to emphasize its weight and mechanical force. Puffs of fine sand erupt from beneath its heavy steel hooves with every impact, lingering in the air as a golden mist. The background of weathered wooden fences and distant arid hills is rendered with a shallow depth of field, keeping the focus entirely on the fluid, hydraulic motion of the horse's piston-driven neck and wire-mesh mane.
@@ -71,7 +71,7 @@ local subjects = {
   horse_grass_field: {
     batch_name: "horse_grass_field",
     input_video: "raw_inputs/horse_slowmo.mp4",
-    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    first_frame: "raw_inputs/horse_grass_field_firstframe.png",
     caption: |||
       Cinematic tracking shot, wide angle, side profile. A magnificent, muscular solid black horse gallops with powerful strides from left to right across a vast, lush emerald-green grassy field. The horse's coat is exceptionally glossy, creating brilliant wet-look highlights that ripple over its shoulders and flanks under the bright, natural afternoon sun. Its thick black mane and tail billow and flow elegantly in slow motion, trailing behind its powerful frame.
       The camera tracks at a consistent speed alongside the horse, maintaining a steady, smooth lateral movement that keeps the animal centered against a soft-focus background. The ground is covered in dense, vibrant grass; as the horse's hooves strike the turf, small blades of grass and dew droplets are kicked into the air rather than dust. The environment is open and expansive, with distant rolling hills and a few scattered oak trees under a clear, pale blue sky.
@@ -81,7 +81,7 @@ local subjects = {
   horse_nyancat: {
     batch_name: "horse_nyancat",
     input_video: "raw_inputs/horse_slowmo.mp4",
-    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    first_frame: "raw_inputs/horse_nyancat_firstframe.png",
     caption: |||
       Cinematic slow-motion tracking shot. A magnificent, highly muscular solid black unicorn gallops from left to right across a sandy outdoor riding arena, captured in a smooth handheld tracking shot that keeps the subject perfectly centered. A giant, spiraled horn protrudes prominently from its forehead, catching the sunlight. The unicorn's coat is exceptionally glossy and sleek, reflecting the bright daylight and highlighting its well-defined musculature, particularly along its shoulder, flanks, and ribcage. Its long, thick black mane flows dramatically in the air due to the speed and slow-motion effect. As the unicorn gallops, a vibrant, surreal stream of colorful rainbows is expelled from its rear, trailing behind it in the air, mixing with the small, distinct plumes of dust kicked up by its hooves hitting the light-tan sand.
       The unicorn is contained behind a barrier of silver, galvanized steel corral fencing made of horizontal metal pipes passing in a blur. The background features a bright, sunny daytime environment with a clear, pale blue sky. Behind the metal fencing, there is a mix of structures: a long, white painted cinderblock wall or low building, a tan building with a brown pitched roof, and various lush green trees and foliage. At one point in the tracking shot, a small, green plastic step stool or mounting block is visible inside the arena near the fence line.
@@ -91,7 +91,7 @@ local subjects = {
   horse_stadium: {
     batch_name: "horse_stadium",
     input_video: "raw_inputs/horse_slowmo.mp4",
-    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    first_frame: "raw_inputs/horse_stadium_firstframe.png",
     caption: |||
       Cinematic wide tracking shot in slow-motion, following a magnificent, muscular solid black horse galloping with power from left to right. The horse's coat is exceptionally glossy, reflecting the bright overhead stadium lights that highlight the ripple of its muscles along its shoulders and flanks. Its thick black mane and tail flow dramatically behind it. As its hooves strike the light-tan sand of the arena floor, small plumes of dust kick up into the air.
       The background is a packed, sun-drenched sports stadium. Rows of spectators fill the grandstands behind a professional white perimeter wall, their forms slightly soft-focused to create a shallow depth of field. The crowd is visible as a sea of movement, with people leaning forward and gesturing in excitement as the horse passes. The lighting is a mix of bright natural daylight and the high-intensity glow of stadium floodlights, creating a high-contrast, epic atmosphere with subtle lens flares.
@@ -153,7 +153,7 @@ local make_tests(config, sweep) = [
 local sweep = [{}];  // single entry, no overrides (defaults handle everything)
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-local base = defaults + res_720p + { keyframes: "random 32" };
+local base = defaults + res_480p + { keyframes: "random 32" };
 make_tests(base + subjects.horse_armor_with_mongol, sweep)
 + make_tests(base + subjects.horse_robot, sweep)
 + make_tests(base + subjects.horse_grass_field, sweep)
