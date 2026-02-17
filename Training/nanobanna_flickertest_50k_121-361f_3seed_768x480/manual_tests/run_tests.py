@@ -737,28 +737,20 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     print(f"{'=' * 70}\n")
 
     stage1_start = time.time()
-    active = []
-    for i, t in enumerate(tests):
-        gpu_id = i % NUM_GPUS
+    latent_dir = batch_dir / "latents"
+    latent_dir.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
+
+    def _build_stage1_cmd(t, gpu_id):
+        """Build the stage 1 inference command for a test."""
         name = t["name"]
-        ref_path = ref_dir / f"{name}_ref.mp4"
-        cond_path = ref_dir / f"{name}_condition.png"
-        output_path = batch_dir / f"{name}_{step_name}.mp4"
-
-        if skip_existing and output_path.exists():
-            print(f"  SKIP {name}: already exists")
-            continue
-
-        latent_dir = batch_dir / "latents"
-        latent_dir.mkdir(parents=True, exist_ok=True)
-        latent_path = latent_dir / f"{name}_{step_name}.pt"
-        cmd = [
+        return [
             "uv", "run", "python", "scripts/inference.py",
             "--checkpoint", MODEL_CHECKPOINT,
             "--text-encoder-path", TEXT_ENCODER,
             "--lora-path", checkpoint,
-            "--reference-video", str(ref_path),
-            "--condition-image", str(cond_path),
+            "--reference-video", str(ref_dir / f"{name}_ref.mp4"),
+            "--condition-image", str(ref_dir / f"{name}_condition.png"),
             "--prompt", t["caption"],
             "--height", str(t.get("height", BASE_HEIGHT)),
             "--width", str(t.get("width", BASE_WIDTH)),
@@ -770,91 +762,85 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--skip-audio",
             "--include-reference-in-output",
             "--device", f"cuda:{gpu_id}",
-            "--output", str(output_path),
-            "--save-latent", str(latent_path),
+            "--output", str(batch_dir / f"{name}_{step_name}.mp4"),
+            "--save-latent", str(latent_dir / f"{name}_{step_name}.pt"),
         ]
 
-        env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
-        print(f"  [GPU {gpu_id}] {name}")
-        active.append((name, subprocess.Popen(cmd, cwd=str(LTX_TRAINER), env=env)))
+    def _build_stage2_cmd(t, gpu_id):
+        """Build the stage 2 upscaling command for a test. Returns None if not applicable."""
+        if not t.get("stage_2", {}).get("enabled", False):
+            return None
+        name = t["name"]
+        lp = latent_dir / f"{name}_{step_name}.pt"
+        if not lp.exists():
+            return None
+        src_path = str(HERE / t["input_video"])
+        cap = cv2.VideoCapture(src_path)
+        sw, sh = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        cap.release()
+        return [
+            "uv", "run", "python", str(HERE / "stage2_upscale.py"), "upscale",
+            "--latent-path", str(lp),
+            "--output", str(batch_dir / f"{name}_{step_name}_stage2.mp4"),
+            "--prompt", t["caption"],
+            "--first-frame", str(HERE / t["first_frame"]),
+            "--pulse-mask-px", str(PULSE_MASK_PX),
+            "--source-aspect", str(sw / sh),
+            "--device", f"cuda:{gpu_id}",
+            "--seed", str(t.get("seed", 42)),
+            "--frame-rate", str(t.get("frame_rate", 25.0)),
+            "--lora-path", checkpoint,
+        ]
 
-        if len(active) >= NUM_GPUS:
-            for n, p in active:
+    # Build per-GPU job queues: each GPU gets its own list of (stage1, stage2) pairs
+    # Jobs run independently per GPU — no cross-GPU waiting.
+    gpu_queues = [[] for _ in range(NUM_GPUS)]
+    for i, t in enumerate(tests):
+        gpu_id = i % NUM_GPUS
+        gpu_queues[gpu_id].append(t)
+
+    def _gpu_worker(gpu_id, queue):
+        """Run all jobs for one GPU sequentially: stage1 → stage2 → stage1 → stage2 → ..."""
+        for t in queue:
+            name = t["name"]
+            output_path = batch_dir / f"{name}_{step_name}.mp4"
+            stage2_path = batch_dir / f"{name}_{step_name}_stage2.mp4"
+
+            # Stage 1
+            if skip_existing and output_path.exists():
+                print(f"  [GPU {gpu_id}] SKIP stage 1: {name}")
+            else:
+                print(f"  [GPU {gpu_id}] Stage 1: {name}")
+                p = subprocess.Popen(_build_stage1_cmd(t, gpu_id), cwd=str(LTX_TRAINER), env=env)
                 p.wait()
-                print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n}")
-            active = []
+                print(f"  [GPU {gpu_id}] {'Done' if p.returncode == 0 else 'FAILED'}: {name} (stage 1)")
 
-    for n, p in active:
-        p.wait()
-        print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n}")
+            # Stage 2 (immediately after this test's stage 1)
+            if skip_existing and stage2_path.exists():
+                print(f"  [GPU {gpu_id}] SKIP stage 2: {name}")
+            else:
+                s2_cmd = _build_stage2_cmd(t, gpu_id)
+                if s2_cmd:
+                    print(f"  [GPU {gpu_id}] Stage 2: {name}")
+                    p = subprocess.Popen(s2_cmd, cwd=str(LTX_TRAINER), env=env)
+                    p.wait()
+                    print(f"  [GPU {gpu_id}] {'Done' if p.returncode == 0 else 'FAILED'}: {name} (stage 2)")
+
+    # Launch all GPU workers in parallel (each is a thread running its queue)
+    import threading
+    threads = []
+    for gpu_id in range(NUM_GPUS):
+        if gpu_queues[gpu_id]:
+            t = threading.Thread(target=_gpu_worker, args=(gpu_id, gpu_queues[gpu_id]))
+            t.start()
+            threads.append(t)
+            print(f"  GPU {gpu_id}: {len(gpu_queues[gpu_id])} tests queued")
+
+    for t in threads:
+        t.join()
 
     stage1_duration = time.time() - stage1_start
-    print(f"\n  Stage 1 total: {format_duration(stage1_duration)} ({stage1_duration*1000:.0f}ms)")
-
-    # Stage 2 upscaling (if any tests have it enabled)
-    stage2_tests = [(i, t) for i, t in enumerate(tests) if t.get("stage_2", {}).get("enabled", False)]
-    if stage2_tests:
-        print(f"\n{'=' * 70}")
-        print(f"  Stage 2 Upscaling - {len(stage2_tests)} tests")
-        print(f"{'=' * 70}\n")
-
-        # Compute source aspect ratio from the input video (same for all tests)
-        sample_test = stage2_tests[0][1]
-        source_video_path = str(HERE / sample_test["input_video"])
-        cap = cv2.VideoCapture(source_video_path)
-        source_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        source_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        cap.release()
-        source_aspect = source_w / source_h
-        print(f"  Source aspect ratio: {source_aspect:.4f} ({source_w}x{source_h})")
-
-        stage2_start = time.time()
-        active = []
-        for i, t in stage2_tests:
-            gpu_id = i % NUM_GPUS
-            name = t["name"]
-            latent_path = batch_dir / "latents" / f"{name}_{step_name}.pt"
-            stage2_path = batch_dir / f"{name}_{step_name}_stage2.mp4"
-            first_frame_path = str(HERE / t["first_frame"])
-
-            if not latent_path.exists():
-                print(f"  SKIP {name}: stage 1 latent missing ({latent_path})")
-                continue
-            if skip_existing and stage2_path.exists():
-                print(f"  SKIP {name}: stage 2 already exists")
-                continue
-
-            cmd = [
-                "uv", "run", "python", str(HERE / "stage2_upscale.py"),
-                "upscale",
-                "--latent-path", str(latent_path),
-                "--output", str(stage2_path),
-                "--prompt", t["caption"],
-                "--first-frame", first_frame_path,
-                "--pulse-mask-px", str(PULSE_MASK_PX),
-                "--source-aspect", str(source_aspect),
-                "--device", f"cuda:{gpu_id}",
-                "--seed", str(t.get("seed", 42)),
-                "--frame-rate", str(t.get("frame_rate", 25.0)),
-                "--lora-path", checkpoint,
-            ]
-
-            env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
-            print(f"  [GPU {gpu_id}] Stage 2: {name}")
-            active.append((name, subprocess.Popen(cmd, cwd=str(LTX_TRAINER), env=env)))
-
-            if len(active) >= NUM_GPUS:
-                for n, p in active:
-                    p.wait()
-                    print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n} (stage 2)")
-                active = []
-
-        for n, p in active:
-            p.wait()
-            print(f"  {'Done' if p.returncode == 0 else 'FAILED'}: {n} (stage 2)")
-
-        stage2_duration = time.time() - stage2_start
-        print(f"\n  Stage 2 total: {format_duration(stage2_duration)} ({stage2_duration*1000:.0f}ms)")
+    print(f"\n  Total (all GPUs): {format_duration(stage1_duration)} ({stage1_duration*1000:.0f}ms)")
 
     # Save stage 2 comparison videos (original raw input side-by-side with stage 2 output)
     any_comparisons = any(t.get("save_stage2_comparison_video", False) for t in tests)
@@ -865,14 +851,10 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     run_duration = time.time() - run_start
     metadata = collect_run_metadata(checkpoint, batch_dir)
     metadata["timings"] = {
-        "stage1_seconds": stage1_duration,
-        "stage1_human": format_duration(stage1_duration),
-        "stage1_ms": stage1_duration * 1000,
+        "pipeline_seconds": stage1_duration,
+        "pipeline_human": format_duration(stage1_duration),
+        "pipeline_ms": stage1_duration * 1000,
     }
-    if stage2_tests:
-        metadata["timings"]["stage2_seconds"] = stage2_duration
-        metadata["timings"]["stage2_human"] = format_duration(stage2_duration)
-        metadata["timings"]["stage2_ms"] = stage2_duration * 1000
     metadata["timings"]["total_seconds"] = run_duration
     metadata["timings"]["total_human"] = format_duration(run_duration)
     metadata["timings"]["total_ms"] = run_duration * 1000
