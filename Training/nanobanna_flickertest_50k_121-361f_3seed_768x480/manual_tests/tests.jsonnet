@@ -4,7 +4,7 @@ local defaults = {
   num_frames: 121,
   width: 1152, // Must be divisible by 32
   height: 736, // Must be divisible by 32
-  keyframes: "random 8",  // list of ints, or "random N" string (randomness controlled by seed)
+  keyframes: "random 8",  // list of ints, "random N" (randomness controlled by seed), or "uniform N" (evenly spaced first-to-last)
   num_diffusion_steps: 20,
   guidance_scale: 4.0,  // text CFG (default 4.0); 1.0=disabled
   cfg_drop_image: 1,  // 0=standard CFG (neg pass keeps image), 1=neg pass drops image tokens entirely, 0-1 blends both (3 passes)
@@ -40,28 +40,16 @@ local subjects = {
   },
 };
 
-// ── Sweep definitions (list of per-test override dicts) ─────────────────────
-local kf_sweep = [
-  { keyframes: "random 4" },
-  { keyframes: "random 8" },
-  { keyframes: "random 16" },
-  { keyframes: "random 32" },
-  { keyframes: "random 44" },
-  { keyframes: "random 64" },
-  { keyframes: "random 72" },
-  { keyframes: "random 80" },
-];
-
-// 2x4 cross product: keyframes [10, 20] × guidance_scale [2, 4, 6, 10]
-local cfg_kf_sweep = [
-  { keyframes: "random 10", guidance_scale: 1.001 },
-  { keyframes: "random 10", guidance_scale: 1.1 },
-  { keyframes: "random 10", guidance_scale: 1.3 },
-  { keyframes: "random 10", guidance_scale: 4 },
-  { keyframes: "random 20", guidance_scale: 1.001 },
-  { keyframes: "random 20", guidance_scale: 2 },
-  { keyframes: "random 20", guidance_scale: 3 },
-  { keyframes: "random 20", guidance_scale: 4 },
+// 2x4 cross product: keyframes [20, 40] × cfg_drop_image [0, 0.5, 1, 2]
+local sweep = [
+  { keyframes: "random 20", cfg_drop_image: 0 },
+  { keyframes: "random 20", cfg_drop_image: 0.5 },
+  { keyframes: "random 20", cfg_drop_image: 1 },
+  { keyframes: "random 20", cfg_drop_image: 2 },
+  { keyframes: "random 40", cfg_drop_image: 0 },
+  { keyframes: "random 40", cfg_drop_image: 0.5 },
+  { keyframes: "random 40", cfg_drop_image: 1 },
+  { keyframes: "random 40", cfg_drop_image: 2 },
 ];
 
 // ── Test generator (applies a sweep to a base config) ───────────────────────
@@ -80,4 +68,4 @@ local overrides = {
 } + res_480p;
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-make_tests(defaults + subjects.fish + overrides, cfg_kf_sweep)
+make_tests(defaults + subjects.fish + overrides, sweep)

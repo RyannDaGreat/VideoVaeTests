@@ -209,12 +209,13 @@ def resolve_keyframes(keyframes, num_frames, seed):
     """
     Resolve keyframe specification to a concrete sorted list of frame indices.
 
-    Supports two formats:
+    Supports three formats:
     - List of ints: returned as-is (already explicit keyframes)
-    - String "random N": generate N randomly distributed keyframes seeded by `seed`,
+    - String "random N": N randomly distributed keyframes seeded by `seed`,
       always including frame 0.
+    - String "uniform N": N uniformly spaced keyframes from frame 0 to frame num_frames-1.
 
-    Pure function — no side effects (uses isolated RNG).
+    Pure function — no side effects (uses isolated RNG for "random").
 
     >>> resolve_keyframes([0, 5, 10], 121, 42)
     [0, 5, 10]
@@ -225,6 +226,12 @@ def resolve_keyframes(keyframes, num_frames, seed):
     0
     >>> kf == sorted(set(kf))
     True
+    >>> resolve_keyframes("uniform 5", 121, 42)
+    [0, 30, 60, 90, 120]
+    >>> resolve_keyframes("uniform 3", 121, 42)
+    [0, 60, 120]
+    >>> resolve_keyframes("uniform 1", 121, 42)
+    [0]
     """
     if isinstance(keyframes, list):
         return keyframes
@@ -236,6 +243,12 @@ def resolve_keyframes(keyframes, num_frames, seed):
         candidates = list(range(1, num_frames))
         chosen = rng.sample(candidates, min(n - 1, len(candidates)))
         return sorted([0] + chosen)
+    if isinstance(keyframes, str) and keyframes.startswith("uniform "):
+        n = int(keyframes.split()[1])
+        if n <= 1:
+            return [0]
+        # Evenly spaced from 0 to num_frames-1, inclusive on both ends
+        return [round(i * (num_frames - 1) / (n - 1)) for i in range(n)]
     raise ValueError(f"Unknown keyframes format: {keyframes!r}")
 
 
