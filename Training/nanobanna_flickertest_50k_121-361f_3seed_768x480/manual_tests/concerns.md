@@ -113,3 +113,42 @@ Plus: loaded wrong latent format (patchified) into spatial-expecting upsample_vi
 3. Text encoding in subprocess (Gemma memory leak)
 4. Sequential model loading with cleanup between each phase
 5. 1152x736 = 13,248 tokens — well within A100-80GB (proven 32,640 works in notebooks)
+
+## 2026-02-17 - I2V CFG Guidance Exploration
+
+### Approaches tried (all initially broken due to IC-LoRA bug):
+1. **3-pass additive**: V_∅ + text_cfg*(V_T - V_∅) + i2v_cfg*(V_I - V_∅) — went white
+2. **4-pass nested**: nested text CFG within image CFG — went white
+3. **Token noising**: replace image tokens with flow-matching-noised versions — went white
+4. **Token removal**: remove image tokens from negative pass sequence — went white
+
+### ROOT CAUSE of all failures: IC-LoRA reference tokens were being stripped
+- ALL approaches used `denoise_mask < 1.0` to identify "image conditioned" tokens
+- IC-LoRA reference tokens ALSO have denoise_mask=0 (they're conditioning tokens too)
+- Every "no image" pass was actually "no image AND no IC-LoRA reference"
+- The transformer lost ALL context about what video to generate → white/washed output
+- Fix: use ref_seq_len to distinguish reference tokens (always kept) from condition
+  image tokens (target frame 0 only, optionally dropped)
+
+### Research findings (10-agent hyper-frenzy + 4-agent mini-frenzy):
+- STIV tested separate image/text CFG — concluded unified CFG works better
+- InstructPix2Pix has battle-tested 3-pass dual CFG formula
+- DynamiCrafter is the only I2V model with explicit dual image/text scales
+- Most models don't do separate image CFG — the model must be trained for it
+- Our IC-LoRA WAS trained with first_frame_conditioning_p=0.8 (20% dropout) — valid
+- LTX-2 uses flow matching: noisy = (1-sigma)*clean + sigma*noise (NOT sqrt-based DDPM)
+- Washed-out artifacts from CFG are well-known; fixes include APG, CFG rescaling
+
+### Current implementation: cfg_drop_image (float)
+- 0.0 = standard CFG (negative pass keeps image) — 2 passes
+- 1.0 = full drop (condition image tokens physically removed from negative sequence) — 2 passes
+- 0-1 = blend both negative results at non-conditioned target tokens — 3 passes
+- IC-LoRA reference tokens are ALWAYS present in ALL passes
+- CFG delta only applied to non-conditioned target tokens (frames 1-N)
+- Condition image tokens (frame 0) forced clean by post-processing mask
+
+### Lessons learned:
+- denoise_mask=0 doesn't distinguish IC-LoRA reference from condition image
+- Must use ref_seq_len to tell them apart
+- Flow matching noising: (1-sigma)*clean + sigma*noise, NOT clean + sigma*noise
+- Token removal is cleaner than token noising (model has seen shorter sequences in training)

@@ -46,6 +46,18 @@ Convert manual test configuration from JSON to Jsonnet for compactness and flexi
 - 2048x1152 = 36,864 tokens — fits on A100-80GB (notebooks proved 32,640 works)
 - Also tested 2304x1472 (no crop) = 52,992 tokens — also fits but includes pulse mask in output
 
+## I2V CFG Guidance (cfg_drop_image)
+- Controls whether the CFG negative pass includes the condition image (first frame anchor)
+- 0.0 = standard (negative keeps image), 1.0 = drop image tokens, 0-1 = blend both
+- Token sequence: [IC-LoRA reference tokens] + [target video tokens]
+- IC-LoRA reference is ALWAYS present in all passes (it's the primary context signal)
+- Only condition image tokens (target frame 0) are optionally removed for the drop pass
+- Uses ref_seq_len to distinguish reference from condition image (both have denoise_mask=0)
+- Positional embeddings are absolute and independent — no shifting needed when removing tokens
+- Training had first_frame_conditioning_p=0.8 (20% of time, no condition image) — model handles it
+- Flow matching noising formula: (1-sigma)*clean + sigma*noise (rectified flow, no square roots)
+- cfg_drop_image is exposed in jsonnet, passed via --cfg-drop-image CLI flag
+
 ## Critical Constraints
 - `num_frames % 8 == 1` (LTX requirement: 121, 241, 361, etc.)
 - `height % 32 == 0` and `width % 32 == 0`
@@ -89,3 +101,14 @@ User wants tests with keyframe counts: 8, 16, 32, and more up to current max (~8
 - DummyRegistry (default) loads only relevant weights per component — no cross-contamination
 - 2304x1472 (52,992 tokens) fits on A100-80GB when GPU is clean (previous OOMs were from memory leaks)
 - ffmpeg-python must be in ltx-trainer requirements for rp.save_video_mp4 to work in uv venv
+- **CRITICAL BUG**: denoise_mask=0 doesn't distinguish IC-LoRA reference from condition image.
+  Both have mask=0. Must use ref_seq_len to tell them apart. All I2V CFG approaches failed
+  because they were stripping the IC-LoRA reference tokens from the negative pass.
+- cfg_drop_image: token REMOVAL (not noising) is the correct approach for the "no image" pass.
+  The model has seen videos without first-frame conditioning during training (20% dropout).
+- Flow matching noising: (1-sigma)*clean + sigma*noise. NOT additive (clean + sigma*noise).
+  NOT sqrt-based (DDPM). LTX-2 uses rectified flow = linear interpolation everywhere.
+- IC-LoRA reference tokens must ALWAYS be present in ALL forward passes (positive and negative).
+  They are the primary conditioning signal. Without them the model has no context → white output.
+- Reference and target have independently computed positional embeddings. Removing condition
+  image tokens from the target doesn't require shifting reference positions.

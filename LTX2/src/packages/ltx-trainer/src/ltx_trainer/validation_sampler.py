@@ -4,42 +4,73 @@ using the new ltx-core components (VideoLatentTools, AudioLatentTools, LatentSta
 
 cfg_drop_image — Image-Aware Classifier-Free Guidance
 =====================================================
-Standard CFG computes: output = pos + scale * (pos - neg), where both the positive
-and negative passes see the same image-conditioned first frame (clean tokens at
-frame 0, timestep=0). The CFG delta only captures the text prompt's effect.
 
-cfg_drop_image controls how much the image anchor influences the CFG negative pass:
+Background: Sequence Structure
+  When using IC-LoRA (image-conditioned LoRA), the token sequence fed to the
+  transformer has two parts concatenated together:
 
-  0.0 — Standard: negative pass has the image anchor (same as positive).
+    [IC-LoRA reference tokens] + [target video tokens]
+     ^-- ref_seq_len tokens      ^-- the video being generated
+
+  Both the reference tokens and the condition image (target frame 0) have
+  denoise_mask=0 and timestep=0 — but they serve DIFFERENT roles:
+    - IC-LoRA reference: provides the style/content context for the entire video.
+      This MUST be present in ALL forward passes or the model has no context.
+    - Condition image (target frame 0): anchors the first frame to a specific image.
+      This is the conditioning we want to optionally vary for CFG.
+
+  CRITICAL: earlier versions of this code used denoise_mask < 1.0 to find "image
+  conditioned" tokens, which incorrectly included the IC-LoRA reference. This caused
+  the reference to be dropped/noised in the negative CFG pass, making the model lose
+  all context and produce washed-out/white outputs. The fix uses ref_seq_len to
+  distinguish reference tokens (always kept) from condition image tokens (optionally
+  dropped).
+
+Standard CFG (cfg_drop_image=0):
+  Both the positive and negative passes see the full sequence including the condition
+  image at frame 0. The CFG delta captures only the text prompt's effect:
+    output = pos + scale * (pos - neg)
+  where pos uses the positive text prompt and neg uses the negative text prompt,
+  but both have the same image anchor. 2 forward passes per step.
+
+cfg_drop_image controls the condition image's role in the CFG negative pass:
+
+  0.0 — Standard: negative pass keeps the condition image (same as positive).
         CFG delta measures "what does the text prompt add?"
         2 forward passes per step.
 
-  1.0 — Full drop: negative pass has the image tokens REMOVED from the sequence.
-        The transformer sees a shorter video (frames 1-N only, no frame 0).
-        Positions are preserved so the model knows the temporal layout.
-        CFG delta measures "what does text + image add together?"
-        2 forward passes per step (but negative has fewer tokens).
+  1.0 — Full drop: the condition image tokens are REMOVED from the negative pass
+        sequence. The transformer sees [IC-LoRA reference] + [target frames 1-N],
+        with no clean frame 0 anchor. Positions are preserved so the model knows
+        the temporal layout. This is valid because:
+          - The transformer handles variable sequence lengths via attention
+          - Positional embeddings are absolute (time/height/width coordinates)
+          - The model has seen videos without first-frame conditioning during
+            training (first_frame_conditioning_p=0.8, so 20% of training had
+            no condition image)
+        CFG delta measures "what does text + first-frame image add together?"
+        2 forward passes per step (negative has fewer tokens).
 
-  0 < alpha < 1 or alpha > 1 — Blend: runs BOTH negative passes (with image and
-        without image), then blends the CFG deltas at non-conditioned tokens:
-          delta = (1 - alpha) * delta_with_image + alpha * delta_without_image
-        At alpha=0.5, equal blend. At alpha>1, extrapolates beyond full image drop.
+  0 < alpha < 1 or alpha > 1 — Blend: runs BOTH negative passes (with and without
+        condition image), then blends the CFG deltas at target frames 1-N:
+          delta = (1 - alpha) * delta_standard + alpha * delta_dropped
+        At alpha=0.5, equal blend. At alpha>1, extrapolates beyond full drop.
         3 forward passes per step (1 positive + 2 negatives).
 
-Token Removal Method (the "without image" pass):
-  Instead of fabricating fake "no image" tokens (which the model may never have
-  seen during training), we literally remove the conditioned tokens from the
-  sequence. The transformer processes a shorter sequence containing only the
-  non-conditioned tokens (frames 1-N), with their original positional embeddings
-  intact. This is valid because:
-    - The transformer handles variable sequence lengths via attention
-    - Positional embeddings are absolute (time/height/width coordinates)
-    - The model has seen videos without first-frame conditioning during training
-      (first_frame_conditioning_p < 1.0)
-  The resulting predictions are then mapped back to their original positions in
-  the full sequence, and the CFG delta is applied only there. Frame 0 tokens
-  are never modified by CFG — they are always forced clean by the post-processing
-  denoise_mask.
+  In all cases, the IC-LoRA reference tokens are ALWAYS present in every pass.
+  The CFG delta is only applied to non-conditioned target tokens (frames 1-N).
+  Conditioned tokens (reference + frame 0) are forced clean by the post-processing
+  denoise_mask after guidance.
+
+Positional Embeddings:
+  Reference and target tokens have INDEPENDENTLY computed positional embeddings
+  (different spatial dimensions are common — e.g., reference at 768x480, target at
+  1152x736). Both start at time=0 but they are separate coordinate systems. When
+  we remove condition image tokens (target frame 0) from the sequence, we do NOT
+  shift any positions — remaining target tokens keep their original absolute
+  (time, height, width) coordinates. The transformer uses absolute positions, not
+  relative, so a sequence starting at frame 1's time coordinate is valid.
+  Reference positions are never modified.
 """
 
 from dataclasses import dataclass, replace

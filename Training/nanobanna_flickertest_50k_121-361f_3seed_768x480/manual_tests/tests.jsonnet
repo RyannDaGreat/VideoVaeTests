@@ -74,10 +74,10 @@ local make_tests(config, sweep) = [
 
 local overrides = {
   keyframes: "random 40",
-  // height: 320,
-  // width: 512,
+  // height: 320, // width: 512,
+  
   num_frames: 121,
-} ;
+} + res_480p;
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
 make_tests(defaults + subjects.fish + overrides, cfg_kf_sweep)
