@@ -857,25 +857,9 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         print(f"\n  Stage 2 total: {format_duration(stage2_duration)} ({stage2_duration*1000:.0f}ms)")
 
     # Save stage 2 comparison videos (original raw input side-by-side with stage 2 output)
-    comparison_tests = [(i, t) for i, t in enumerate(tests)
-                        if t.get("stage_2", {}).get("enabled", False) and t.get("save_stage2_comparison_video", False)]
-    if comparison_tests:
-        print(f"\n{'=' * 70}")
-        print(f"  Stage 2 Comparison Videos - {len(comparison_tests)} tests")
-        print(f"{'=' * 70}\n")
-        comp_dir = batch_dir / "comparison_videos"
-        comp_dir.mkdir(parents=True, exist_ok=True)
-        for i, t in comparison_tests:
-            name = t["name"]
-            raw_input = str(HERE / t["input_video"])
-            stage2_path = batch_dir / f"{name}_{step_name}_stage2.mp4"
-            comp_path = comp_dir / f"{name}_{step_name}_comparison.mp4"
-            if not stage2_path.exists():
-                print(f"  SKIP {name}: stage 2 output missing")
-                continue
-            print(f"  Comparison: {name}")
-            save_hconcat_video([raw_input, str(stage2_path)], str(comp_path))
-            print(f"    Saved: {comp_path}")
+    any_comparisons = any(t.get("save_stage2_comparison_video", False) for t in tests)
+    if any_comparisons:
+        make_comparison_videos(str(batch_dir))
 
     # Save metadata
     run_duration = time.time() - run_start
@@ -901,5 +885,65 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     print(f"Outputs in: {batch_dir}")
 
 
+def make_comparison_videos(batch_dir: str):
+    """
+    Generate side-by-side comparison videos for all stage 2 outputs in a batch directory.
+
+    Reads tests.json from the batch dir to find raw input paths, then creates
+    [raw input | stage 2 output] comparison videos in comparison_videos/ subfolder.
+
+    Usage:
+        python run_tests.py make_comparison_videos manual_tests/test_outputs/kf_sweep_1152x736_100step_step_09300
+    """
+    batch_dir = Path(batch_dir)
+    tests_json = batch_dir / "tests.json"
+    if not tests_json.exists():
+        raise FileNotFoundError(f"No tests.json in {batch_dir}")
+
+    with open(tests_json) as f:
+        tests = json.load(f)
+
+    comp_dir = batch_dir / "comparison_videos"
+    comp_dir.mkdir(parents=True, exist_ok=True)
+
+    # Find the step name from existing mp4s
+    mp4s = list(batch_dir.glob("*.mp4"))
+    if not mp4s:
+        raise FileNotFoundError(f"No mp4 files in {batch_dir}")
+
+    stage2_files = sorted(batch_dir.glob("*stage2*.mp4"))
+    if not stage2_files:
+        raise FileNotFoundError(f"No stage2 mp4 files in {batch_dir}")
+
+    print(f"Found {len(stage2_files)} stage 2 outputs in {batch_dir}")
+
+    for s2 in stage2_files:
+        # Find matching test by name prefix
+        s2_name = s2.stem  # e.g. "boat_0_cdi1_kf40_step_10250_stage2"
+        matching = [t for t in tests if s2_name.startswith(t["name"])]
+        if not matching:
+            print(f"  SKIP {s2.name}: no matching test in tests.json")
+            continue
+        t = matching[0]
+        raw_input = str(HERE / t["input_video"])
+        if not Path(raw_input).exists():
+            # Try raw_inputs subfolder in batch dir
+            raw_input = str(batch_dir / "raw_inputs" / Path(t["input_video"]).name)
+        if not Path(raw_input).exists():
+            print(f"  SKIP {s2.name}: raw input not found")
+            continue
+
+        comp_path = comp_dir / s2.name.replace("_stage2.mp4", "_comparison.mp4")
+        print(f"  {s2.name} -> {comp_path.name}")
+        save_hconcat_video([raw_input, str(s2)], str(comp_path))
+        print(f"    Done")
+
+    print(f"\nComparison videos saved to {comp_dir}")
+
+
 if __name__ == "__main__":
-    fire.Fire({"run": run, "generate_references": generate_references})
+    fire.Fire({
+        "run": run,
+        "generate_references": generate_references,
+        "make_comparison_videos": make_comparison_videos,
+    })
