@@ -1,6 +1,45 @@
 """Validation sampling for LTX-2 training using ltx-core components.
 This module provides a simplified validation pipeline for generating samples during training,
 using the new ltx-core components (VideoLatentTools, AudioLatentTools, LatentState, etc.).
+
+cfg_drop_image — Image-Aware Classifier-Free Guidance
+=====================================================
+Standard CFG computes: output = pos + scale * (pos - neg), where both the positive
+and negative passes see the same image-conditioned first frame (clean tokens at
+frame 0, timestep=0). The CFG delta only captures the text prompt's effect.
+
+cfg_drop_image controls how much the image anchor influences the CFG negative pass:
+
+  0.0 — Standard: negative pass has the image anchor (same as positive).
+        CFG delta measures "what does the text prompt add?"
+        2 forward passes per step.
+
+  1.0 — Full drop: negative pass has the image tokens REMOVED from the sequence.
+        The transformer sees a shorter video (frames 1-N only, no frame 0).
+        Positions are preserved so the model knows the temporal layout.
+        CFG delta measures "what does text + image add together?"
+        2 forward passes per step (but negative has fewer tokens).
+
+  0 < alpha < 1 or alpha > 1 — Blend: runs BOTH negative passes (with image and
+        without image), then blends the CFG deltas at non-conditioned tokens:
+          delta = (1 - alpha) * delta_with_image + alpha * delta_without_image
+        At alpha=0.5, equal blend. At alpha>1, extrapolates beyond full image drop.
+        3 forward passes per step (1 positive + 2 negatives).
+
+Token Removal Method (the "without image" pass):
+  Instead of fabricating fake "no image" tokens (which the model may never have
+  seen during training), we literally remove the conditioned tokens from the
+  sequence. The transformer processes a shorter sequence containing only the
+  non-conditioned tokens (frames 1-N), with their original positional embeddings
+  intact. This is valid because:
+    - The transformer handles variable sequence lengths via attention
+    - Positional embeddings are absolute (time/height/width coordinates)
+    - The model has seen videos without first-frame conditioning during training
+      (first_frame_conditioning_p < 1.0)
+  The resulting predictions are then mapped back to their original positions in
+  the full sequence, and the CFG delta is applied only there. Frame 0 tokens
+  are never modified by CFG — they are always forced clean by the post-processing
+  denoise_mask.
 """
 
 from dataclasses import dataclass, replace
@@ -95,7 +134,7 @@ class GenerationConfig:
     # Tiled decoding config: None = use defaults (enabled), False = disable, or TiledDecodingConfig for custom settings
     tiled_decoding: TiledDecodingConfig | Literal[False] | None = None
     save_latent_path: str | None = None  # If set, save raw patchified latent to .pt before decoding
-    cfg_drop_image: bool = False  # If True, CFG negative pass drops image anchor (fully unconditional baseline)
+    cfg_drop_image: float = 0.0  # 0=standard CFG (neg pass keeps image), 1=neg pass drops image tokens, 0<x<1 or >1 blends both
 
     def __post_init__(self) -> None:
         """Apply default tiled decoding config if not provided."""
@@ -308,6 +347,7 @@ class ValidationSampler:
             v_ctx_neg=v_ctx_neg,
             a_ctx_neg=a_ctx_neg,
             device=device,
+            ref_seq_len=ref_seq_len,
         )
 
         # Extract target portion and decode
@@ -514,6 +554,7 @@ class ValidationSampler:
         v_ctx_neg: Tensor | None,
         a_ctx_neg: Tensor | None,
         device: torch.device,
+        ref_seq_len: int = 0,
     ) -> tuple[LatentState, LatentState | None]:
         """Run the denoising loop using X0 prediction with CFG and optional STG."""
         scheduler = LTX2Scheduler()
@@ -553,14 +594,26 @@ class ValidationSampler:
         x0_model = X0Model(self._transformer)
         print("  Transformer ready. Denoising...", flush=True)
 
-        # Pre-compute boolean mask for cfg_drop_image: identifies which tokens are
-        # image-conditioned (frame 0). These tokens will be REMOVED from the sequence
-        # for the CFG negative pass, so the transformer sees a shorter video with no
-        # image anchor. The CFG delta is then only applied to the non-conditioned tokens.
-        if config.cfg_drop_image:
-            # (B, N, 1) bool — True at image-conditioned positions (where denoise_mask < 1)
-            cond_token_mask = (video_state.denoise_mask < 1.0).squeeze(-1)  # (B, N)
-            uncond_token_mask = ~cond_token_mask  # (B, N) — True at non-conditioned tokens
+        # Pre-compute token mask for cfg_drop_image (see module docstring for full explanation).
+        # We need to identify ONLY the condition image tokens (target frame 0), NOT the
+        # IC-LoRA reference tokens. Both have denoise_mask=0, but the reference occupies
+        # tokens [0, ref_seq_len) and the condition image occupies tokens within the target
+        # portion [ref_seq_len, ...] where denoise_mask < 1.
+        #
+        # keep_mask: (N,) bool — True at tokens to KEEP in the drop-image pass.
+        #   = all reference tokens + all non-conditioned target tokens
+        #   = everything EXCEPT the condition image tokens
+        # cond_img_mask: (N,) bool — True at condition image tokens only (for blending)
+        if config.cfg_drop_image != 0.0:
+            N = video_state.denoise_mask.shape[1]
+            is_reference = torch.zeros(N, dtype=torch.bool, device=device)
+            is_reference[:ref_seq_len] = True
+            is_conditioned = (video_state.denoise_mask[0, :, 0] < 1.0)
+            # Condition image tokens: conditioned AND not reference
+            cond_img_mask = is_conditioned & ~is_reference  # (N,) — True at condition image tokens
+            keep_mask = ~cond_img_mask  # (N,) — True at tokens to keep (reference + unconditioned target)
+            # For applying deltas: only non-conditioned target tokens
+            target_uncond_mask = ~is_conditioned & ~is_reference  # (N,) — frames 1-N of target
 
         with torch.autocast(device_type=str(device).split(":")[0], dtype=torch.bfloat16):
             for step_idx, sigma in enumerate(sigmas[:-1]):
@@ -590,45 +643,58 @@ class ValidationSampler:
                 pos_video, pos_audio = x0_model(video=video, audio=audio, perturbations=None)
                 denoised_video, denoised_audio = pos_video, pos_audio
 
-                # ── Text CFG with optional image drop ─────────────────────────
+                # ── Text CFG with cfg_drop_image blending ─────────────────────
+                # See module docstring for full explanation of the token removal method.
                 if cfg_guider.enabled() and v_ctx_neg is not None:
-                    if config.cfg_drop_image:
-                        # cfg_drop_image: REMOVE image-conditioned tokens from the negative
-                        # pass entirely. The transformer sees a shorter sequence (frames 1-N
-                        # only, no frame 0 anchor). Positions are kept as-is so the model
-                        # knows these are frames 1+. CFG delta is only applied to
-                        # non-conditioned tokens; frame 0 is untouched by guidance.
-                        #
-                        # uncond_token_mask: (B, N) bool — True at non-conditioned tokens
-                        # Shapes: latent (B, N, D), timesteps (B, N), positions (B, 3, N)
-                        mask = uncond_token_mask[0]  # (N,) — same for all batch items (B=1)
+                    alpha = config.cfg_drop_image
 
-                        # Build shorter Modality with conditioned tokens removed
-                        video_short = replace(
-                            video,
-                            latent=video.latent[:, mask],       # (B, N', D)
-                            timesteps=video.timesteps[:, mask], # (B, N')
-                            positions=video.positions[:, :, mask],  # (B, 3, N')
-                            context=v_ctx_neg,
-                        )
-                        neg_short, _ = x0_model(video=video_short, audio=audio, perturbations=None)
-
-                        # Apply CFG delta only to the non-conditioned tokens.
-                        # pos_video and neg_short both have predictions for the same tokens
-                        # (just pos_video is full-length, so we index into it with mask).
-                        # cfg_guider.delta = (scale - 1) * (cond - uncond)
-                        delta = cfg_guider.delta(pos_video[:, mask], neg_short)
-                        denoised_video = denoised_video.clone()
-                        denoised_video[:, mask] = denoised_video[:, mask] + delta
-                    else:
-                        # Standard text CFG: negative pass keeps image conditioning.
-                        # Both positive and negative passes see the same image anchor;
-                        # only the text embedding differs.
+                    # Standard negative pass (with image anchor in sequence)
+                    if alpha != 1.0:
                         video_neg = replace(video, context=v_ctx_neg)
                         audio_neg = replace(audio, context=a_ctx_neg) if audio is not None else None
                         neg_video, neg_audio = x0_model(video=video_neg, audio=audio_neg, perturbations=None)
 
+                    # Token-removal negative pass: remove ONLY condition image tokens.
+                    # IC-LoRA reference tokens are KEPT — only the first-frame anchor is dropped.
+                    # keep_mask: True at reference + unconditioned target tokens.
+                    # The transformer sees: [reference tokens] + [noisy target frames 1-N]
+                    # (no clean frame 0 anchor).
+                    if alpha != 0.0:
+                        video_short = replace(
+                            video,
+                            latent=video.latent[:, keep_mask],
+                            timesteps=video.timesteps[:, keep_mask],
+                            positions=video.positions[:, :, keep_mask],
+                            context=v_ctx_neg,
+                        )
+                        neg_short, _ = x0_model(video=video_short, audio=audio, perturbations=None)
+                        # neg_short has predictions for [ref tokens] + [target frames 1-N]
+                        # We only need the target portion for CFG delta
+                        # target_uncond_mask applied to keep_mask gives us the target indices
+                        # within neg_short: skip ref_seq_len tokens at the start
+                        neg_short_target = neg_short[:, ref_seq_len:]
+
+                    # Compute and apply CFG delta
+                    # target_uncond_mask: (N,) True at non-conditioned target tokens (frames 1-N)
+                    if alpha == 0.0:
+                        # Standard: delta from full-sequence negative pass
                         denoised_video = denoised_video + cfg_guider.delta(pos_video, neg_video)
+                        if audio is not None and denoised_audio is not None:
+                            denoised_audio = denoised_audio + cfg_guider.delta(pos_audio, neg_audio)
+                    elif alpha == 1.0:
+                        # Full drop: delta from token-removal pass, only at target frames 1-N
+                        delta_drop = cfg_guider.delta(pos_video[:, target_uncond_mask], neg_short_target)
+                        denoised_video = denoised_video.clone()
+                        denoised_video[:, target_uncond_mask] = denoised_video[:, target_uncond_mask] + delta_drop
+                    else:
+                        # Blend: at target frames 1-N, weighted mix of both deltas.
+                        # Reference and condition image tokens keep standard delta
+                        # (post-processing forces conditioned tokens clean anyway).
+                        delta_std = cfg_guider.delta(pos_video[:, target_uncond_mask], neg_video[:, target_uncond_mask])
+                        delta_drop = cfg_guider.delta(pos_video[:, target_uncond_mask], neg_short_target)
+                        blended = (1 - alpha) * delta_std + alpha * delta_drop
+                        denoised_video = denoised_video.clone()
+                        denoised_video[:, target_uncond_mask] = denoised_video[:, target_uncond_mask] + blended
                         if audio is not None and denoised_audio is not None:
                             denoised_audio = denoised_audio + cfg_guider.delta(pos_audio, neg_audio)
 

@@ -285,9 +285,9 @@ def main() -> None:  # noqa: PLR0912, PLR0915
     )
     parser.add_argument(
         "--cfg-drop-image",
-        action="store_true",
-        default=False,
-        help="CFG negative pass drops image anchor (fully unconditional baseline, STIV JIT-CFG style)",
+        type=float,
+        default=0.0,
+        help="Image drop blend for CFG: 0=standard (keep image), 1=fully drop image tokens, 0-1 blends both",
     )
 
     # Device arguments

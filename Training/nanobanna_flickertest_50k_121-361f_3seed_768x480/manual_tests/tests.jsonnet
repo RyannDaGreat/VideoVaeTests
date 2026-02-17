@@ -7,7 +7,7 @@ local defaults = {
   keyframes: "random 8",  // list of ints, or "random N" string (randomness controlled by seed)
   num_diffusion_steps: 20,
   guidance_scale: 4.0,  // text CFG (default 4.0); 1.0=disabled
-  cfg_drop_image: true,  // true: CFG negative pass drops image (fully unconditional baseline, STIV JIT-CFG); false: negative pass keeps image (standard LTX)
+  cfg_drop_image: 1,  // 0=standard CFG (neg pass keeps image), 1=neg pass drops image tokens entirely, 0-1 blends both (3 passes)
   ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes. Empirically, not sure it matters...
   stage_2: { enabled: true },
   batch_title: "%s_%dx%d_%dstep" % [self.batch_name, self.width, self.height, self.num_diffusion_steps],
@@ -59,8 +59,8 @@ local cfg_kf_sweep = [
   { keyframes: "random 10", guidance_scale: 1.3 },
   { keyframes: "random 10", guidance_scale: 4 },
   { keyframes: "random 20", guidance_scale: 1.001 },
-  { keyframes: "random 20", guidance_scale: 1.1 },
-  { keyframes: "random 20", guidance_scale: 1.3 },
+  { keyframes: "random 20", guidance_scale: 2 },
+  { keyframes: "random 20", guidance_scale: 3 },
   { keyframes: "random 20", guidance_scale: 4 },
 ];
 
@@ -74,8 +74,8 @@ local make_tests(config, sweep) = [
 
 local overrides = {
   keyframes: "random 40",
-  height: 320,
-  width: 512,
+  // height: 320,
+  // width: 512,
   num_frames: 121,
 } ;
 

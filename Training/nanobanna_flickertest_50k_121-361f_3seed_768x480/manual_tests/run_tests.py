@@ -463,6 +463,8 @@ def _format_value_for_name(key, value):
     '.12'
     >>> _format_value_for_name("cfg_drop_image", True)
     '1'
+    >>> _format_value_for_name("cfg_drop_image", 0.5)
+    '.5'
     """
     if key == "keyframes":
         if isinstance(value, list):
@@ -694,7 +696,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--num-frames", str(t.get("num_frames", 121)),
             "--num-inference-steps", str(t.get("num_diffusion_steps", 30)),
             "--guidance-scale", str(t.get("guidance_scale", 4.0)),
-            *(["--cfg-drop-image"] if t.get("cfg_drop_image", False) else []),
+            "--cfg-drop-image", str(t.get("cfg_drop_image", 0.0)),
             "--seed", str(t.get("seed", 42)),
             "--skip-audio",
             "--include-reference-in-output",
