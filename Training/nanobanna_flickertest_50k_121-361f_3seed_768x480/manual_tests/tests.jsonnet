@@ -40,16 +40,25 @@ local subjects = {
   },
 };
 
-// 2x4 cross product: keyframes [20, 40] × cfg_drop_image [0, 0.5, 1, 2]
+// 4x4 cross product: cfg_drop_image [0, 0.5, 1, 2] × guidance_scale [4, 8, 12, 16]
+// All with 40 keyframes
 local sweep = [
-  { keyframes: "random 20", cfg_drop_image: 0 },
-  { keyframes: "random 20", cfg_drop_image: 0.5 },
-  { keyframes: "random 20", cfg_drop_image: 1 },
-  { keyframes: "random 20", cfg_drop_image: 2 },
-  { keyframes: "random 40", cfg_drop_image: 0 },
-  { keyframes: "random 40", cfg_drop_image: 0.5 },
-  { keyframes: "random 40", cfg_drop_image: 1 },
-  { keyframes: "random 40", cfg_drop_image: 2 },
+  { keyframes: "random 40", cfg_drop_image: 0,   guidance_scale: 4 },
+  { keyframes: "random 40", cfg_drop_image: 0,   guidance_scale: 8 },
+  { keyframes: "random 40", cfg_drop_image: 0,   guidance_scale: 12 },
+  { keyframes: "random 40", cfg_drop_image: 0,   guidance_scale: 16 },
+  { keyframes: "random 40", cfg_drop_image: 0.5, guidance_scale: 4 },
+  { keyframes: "random 40", cfg_drop_image: 0.5, guidance_scale: 8 },
+  { keyframes: "random 40", cfg_drop_image: 0.5, guidance_scale: 12 },
+  { keyframes: "random 40", cfg_drop_image: 0.5, guidance_scale: 16 },
+  { keyframes: "random 40", cfg_drop_image: 1,   guidance_scale: 4 },
+  { keyframes: "random 40", cfg_drop_image: 1,   guidance_scale: 8 },
+  { keyframes: "random 40", cfg_drop_image: 1,   guidance_scale: 12 },
+  { keyframes: "random 40", cfg_drop_image: 1,   guidance_scale: 16 },
+  { keyframes: "random 40", cfg_drop_image: 2,   guidance_scale: 4 },
+  { keyframes: "random 40", cfg_drop_image: 2,   guidance_scale: 8 },
+  { keyframes: "random 40", cfg_drop_image: 2,   guidance_scale: 12 },
+  { keyframes: "random 40", cfg_drop_image: 2,   guidance_scale: 16 },
 ];
 
 // ── Test generator (applies a sweep to a base config) ───────────────────────
@@ -62,10 +71,11 @@ local make_tests(config, sweep) = [
 
 local overrides = {
   keyframes: "random 40",
-  // height: 320, // width: 512,
+  height: 320, width: 512,
+  num_diffusion_steps:15,
   
   num_frames: 121,
-} + res_480p;
+};// + res_480p;
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
 make_tests(defaults + subjects.fish + overrides, sweep)
