@@ -826,6 +826,21 @@ def run(checkpoint: str = None, skip_existing: bool = False):
                     p.wait()
                     print(f"  [GPU {gpu_id}] {'Done' if p.returncode == 0 else 'FAILED'}: {name} (stage 2)")
 
+            # Comparison video (immediately after this test's stage 2)
+            if t.get("save_stage2_comparison_video", False) and stage2_path.exists():
+                raw_input = HERE / t["input_video"]
+                if not raw_input.exists():
+                    raw_input = batch_dir / "raw_inputs" / raw_input.name
+                comp_dir = batch_dir / "comparison_videos"
+                comp_dir.mkdir(parents=True, exist_ok=True)
+                comp_path = comp_dir / f"{name}_{step_name}_comparison.mp4"
+                if skip_existing and comp_path.exists():
+                    print(f"  [GPU {gpu_id}] SKIP comparison: {name}")
+                else:
+                    print(f"  [GPU {gpu_id}] Comparison: {name}")
+                    save_hconcat_video([str(raw_input), str(stage2_path)], str(comp_path))
+                    print(f"  [GPU {gpu_id}] Done: {name} (comparison)")
+
     # Launch all GPU workers in parallel (each is a thread running its queue)
     import threading
     threads = []
@@ -841,11 +856,6 @@ def run(checkpoint: str = None, skip_existing: bool = False):
 
     stage1_duration = time.time() - stage1_start
     print(f"\n  Total (all GPUs): {format_duration(stage1_duration)} ({stage1_duration*1000:.0f}ms)")
-
-    # Save stage 2 comparison videos (original raw input side-by-side with stage 2 output)
-    any_comparisons = any(t.get("save_stage2_comparison_video", False) for t in tests)
-    if any_comparisons:
-        make_comparison_videos(str(batch_dir))
 
     # Save metadata
     run_duration = time.time() - run_start
