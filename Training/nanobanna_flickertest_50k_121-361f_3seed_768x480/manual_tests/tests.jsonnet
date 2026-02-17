@@ -1,6 +1,7 @@
 // ── Shared defaults ─────────────────────────────────────────────────────────
 local defaults = {
-  seed: 42,  // int or "random" (system-entropy); controls both diffusion noise and keyframe selection
+  // seed: 42,  // int or "random" (system-entropy); controls both diffusion noise and keyframe selection
+  seed: 'random',  // int or "random" (system-entropy); controls both diffusion noise and keyframe selection
   num_frames: 121, // Number of frames in the video, must be 1 more than a number divisible by 8
   width: 1152, // Must be divisible by 32
   height: 736, // Must be divisible by 32
@@ -51,7 +52,7 @@ local subjects = {
   horse_armor_with_mongol: {
     batch_name: "horse_armor_with_mongol",
     input_video: "raw_inputs/horse_slowmo.mp4",
-    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    first_frame: "raw_inputs/horse_armor_with_mongol_firstframe.png",
     caption: |||
       Cinematic slow-motion tracking shot, keeping the subjects perfectly centered in a medium-wide frame under bright, natural sunlight coming from slightly above and in front of the lens. The camera glides smoothly alongside a magnificent, highly muscular solid black horse galloping powerfully from left to right across a soft, light-tan sandy riding arena. A formidable Mongolian warrior sits confidently astride the horse, dressed in traditional leather lamellar armor, a fur-trimmed conical helmet, and intricately patterned silk garments, leaning slightly forward in a focused, commanding posture.
       The horse is heavily outfitted to match, wearing beautiful Mongolian-style armor that includes a detailed leather neck guard and chest piece with gleaming metal accents, resting under an ornate traditional saddle. Where exposed, the horse's sleek dark coat reflects the daylight, highlighting its defined musculature, while its long, thick black tail flows dramatically in the wind. As the horse's hooves strike the soft sand, small, distinct plumes of warm dust kick up into the air.
@@ -153,7 +154,7 @@ local make_tests(config, sweep) = [
 local sweep = [{}];  // single entry, no overrides (defaults handle everything)
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-local base = defaults + res_480p + { keyframes: "random 32" };
+local base = defaults + res_720p + { keyframes: "random 32" };
 make_tests(base + subjects.horse_armor_with_mongol, sweep)
 + make_tests(base + subjects.horse_robot, sweep)
 + make_tests(base + subjects.horse_grass_field, sweep)
