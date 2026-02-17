@@ -37,6 +37,7 @@ dependencies = [
 	"jsonnet",
 	"ffmpeg-python",
 	"pytz",
+	"easydict",
 ]
 
 [dependency-groups]

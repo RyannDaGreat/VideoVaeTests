@@ -1,7 +1,7 @@
 // ── Shared defaults ─────────────────────────────────────────────────────────
 local defaults = {
   seed: 42,  // int or "random" (system-entropy); controls both diffusion noise and keyframe selection
-  num_frames: 121,
+  num_frames: 121, // Number of frames in the video, must be 1 more than a number divisible by 8
   width: 1152, // Must be divisible by 32
   height: 736, // Must be divisible by 32
   keyframes: "random 8",  // list of ints, "random N" (randomness controlled by seed), or "uniform N" (evenly spaced first-to-last)
@@ -10,6 +10,7 @@ local defaults = {
   cfg_drop_image: 1,  // 0=standard CFG (neg pass keeps image), 1=neg pass drops image tokens entirely, 0-1 blends both (3 passes)
   ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes. Empirically, not sure it matters...
   stage_2: { enabled: true },
+  save_stage2_comparison_video: true,  // save raw input vs stage 2 output side-by-side comparison
   batch_title: "%s_%dx%d_%dstep" % [self.batch_name, self.width, self.height, self.num_diffusion_steps],
 };
 

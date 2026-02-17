@@ -408,6 +408,22 @@ def save_video_lossless(path, frames, fps=25):
             container.mux(packet)
 
 
+def save_hconcat_video(paths, output_path, framerate=25, video_bitrate=100_000_000):
+    """
+    Load videos, normalize sizes/lengths, horizontally concatenate, and save.
+
+    Trims all videos to the shortest length, resizes to the largest dimensions
+    (nearest-neighbor), concatenates them side-by-side, and saves as h264 mp4.
+
+    >>> # save_hconcat_video(["a.mp4", "b.mp4"], output_path="out.mp4")
+    """
+    videos = rp.load_videos(paths)
+    videos = rp.trim_videos_to_min_length(videos)
+    videos = rp.resize_videos_to_max_size(videos, interp="nearest")
+    video = rp.horizontally_concatenated_videos(videos)
+    return rp.save_video_mp4(video, output_path, framerate=framerate, video_bitrate=video_bitrate)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Core Pipeline
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -607,12 +623,16 @@ def generate_references(batch_dir=None):
         keyframe_img = rp.load_image(str(HERE / t["first_frame"]), use_cache=False)
         keyframe_img = rp.as_byte_image(rp.as_rgb_image(keyframe_img, copy=False), copy=False)
 
-        # Take first N frames (clip if source is shorter, round down to k*8+1)
-        if len(video) < num_frames:
-            clipped = ((len(video) - 1) // 8) * 8 + 1  # nearest valid frame count: k*8+1
-            print(f"    WARNING: source only has {len(video)} frames, clipping num_frames from {num_frames} to {clipped}")
-            num_frames = clipped
-        print(f"    Taking first {num_frames} of {len(video)} frames...")
+        # Take first N frames. If source is shorter, pad by repeating the last frame.
+        # Padded frames get pulse_mask=0 (off), enabling video extension beyond source length.
+        source_frame_count = len(video)
+        if source_frame_count < num_frames:
+            print(f"    VIDEO EXTENSION: source has {source_frame_count} frames, padding to {num_frames} by repeating last frame")
+            last_frame = video[-1]
+            padding = [last_frame] * (num_frames - source_frame_count)
+            video = list(video) + padding
+        else:
+            print(f"    Taking first {num_frames} of {source_frame_count} frames...")
         video = np.array(video[:num_frames])
 
         # Compute content size preserving source aspect ratio
@@ -633,11 +653,15 @@ def generate_references(batch_dir=None):
             nn_frames[0] = keyframe_img
 
         # Build composite frames
+        # Padded frames (beyond original source length) get pulse_mask=0 always,
+        # even if they're in the keyframes list. This signals "no keyframe data here"
+        # and enables video extension: the model generates new content for these frames.
         print(f"    Compositing reference frames...")
+        keyframe_set = set(keyframes)
         ref_out = np.stack([
             build_reference_frame(
                 content=nn_frames[i],
-                mask_value=255 if i in set(keyframes) else 0,
+                mask_value=255 if (i in keyframe_set and i < source_frame_count) else 0,
                 target_width=target_w,
                 target_height=target_h,
                 mask_px=PULSE_MASK_PX,
@@ -831,6 +855,27 @@ def run(checkpoint: str = None, skip_existing: bool = False):
 
         stage2_duration = time.time() - stage2_start
         print(f"\n  Stage 2 total: {format_duration(stage2_duration)} ({stage2_duration*1000:.0f}ms)")
+
+    # Save stage 2 comparison videos (original raw input side-by-side with stage 2 output)
+    comparison_tests = [(i, t) for i, t in enumerate(tests)
+                        if t.get("stage_2", {}).get("enabled", False) and t.get("save_stage2_comparison_video", False)]
+    if comparison_tests:
+        print(f"\n{'=' * 70}")
+        print(f"  Stage 2 Comparison Videos - {len(comparison_tests)} tests")
+        print(f"{'=' * 70}\n")
+        comp_dir = batch_dir / "comparison_videos"
+        comp_dir.mkdir(parents=True, exist_ok=True)
+        for i, t in comparison_tests:
+            name = t["name"]
+            raw_input = str(HERE / t["input_video"])
+            stage2_path = batch_dir / f"{name}_{step_name}_stage2.mp4"
+            comp_path = comp_dir / f"{name}_{step_name}_comparison.mp4"
+            if not stage2_path.exists():
+                print(f"  SKIP {name}: stage 2 output missing")
+                continue
+            print(f"  Comparison: {name}")
+            save_hconcat_video([raw_input, str(stage2_path)], str(comp_path))
+            print(f"    Saved: {comp_path}")
 
     # Save metadata
     run_duration = time.time() - run_start

@@ -58,6 +58,18 @@ Convert manual test configuration from JSON to Jsonnet for compactness and flexi
 - Flow matching noising formula: (1-sigma)*clean + sigma*noise (rectified flow, no square roots)
 - cfg_drop_image is exposed in jsonnet, passed via --cfg-drop-image CLI flag
 
+## Video Extension
+- When num_frames exceeds the source video length, the last frame is repeated to pad
+- Padded frames have pulse_mask=0 (off) — they are NOT treated as keyframes
+- This enables video extension: the model generates new content for frames beyond the source
+- Keyframes beyond source length are excluded from pulse mask even if selected by "random N"
+- The frame count is NOT clipped — the full requested num_frames is used
+
+## Stage 2 Comparison Videos
+- When save_stage2_comparison_video=true, saves raw input vs stage 2 output side-by-side
+- Saved to comparison_videos/ subfolder in the batch directory
+- Uses save_hconcat_video: trims to min length, resizes to max size, hconcats
+
 ## Critical Constraints
 - `num_frames % 8 == 1` (LTX requirement: 121, 241, 361, etc.)
 - `height % 32 == 0` and `width % 32 == 0`
