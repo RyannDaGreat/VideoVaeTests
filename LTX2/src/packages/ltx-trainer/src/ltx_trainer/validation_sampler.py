@@ -627,11 +627,16 @@ class ValidationSampler:
 
                 if i2v_active:
                     # Build "no image" Modality: at conditioned positions (frame 0),
-                    # replace clean image tokens with forward-diffused noisy versions,
+                    # replace clean image tokens with flow-matching-noised versions,
                     # and set all timesteps to sigma (no "clean anchor" hint).
                     # i2v_noise: fixed Gaussian noise pre-computed before the loop.
                     # i2v_cond_mask: 1.0 at conditioned tokens, 0.0 elsewhere.
-                    noised_cond = video_clean_state.latent + i2v_noise * sigma
+                    #
+                    # Flow matching noising formula (from training_strategies/video_to_video.py line 136):
+                    #   noisy = (1 - sigma) * clean + sigma * noise
+                    # This is what the model sees during training when frame 0 is NOT conditioned.
+                    # NOT additive noise (clean + sigma*noise) — that's a different distribution.
+                    noised_cond = (1 - sigma) * video_clean_state.latent + sigma * i2v_noise
                     noimg_latent = video.latent * (1 - i2v_cond_mask) + noised_cond * i2v_cond_mask
                     video_noimg = replace(
                         video,
