@@ -553,16 +553,14 @@ class ValidationSampler:
         x0_model = X0Model(self._transformer)
         print("  Transformer ready. Denoising...", flush=True)
 
-        # Pre-compute fixed noise for cfg_drop_image (consistent across denoising steps).
-        # i2v_cond_mask: (B, N, 1) — 1.0 at image-conditioned token positions, 0.0 elsewhere.
-        #   Derived from denoise_mask, which is set to 0 at conditioned positions by
-        #   VideoConditionByLatentIndex.apply_to() (see conditioning/types/latent_cond.py).
-        # i2v_noise: (B, N, C) — fixed Gaussian noise, same shape as the patchified latent.
-        #   Used to "un-condition" image tokens by noising them to match the current sigma.
-        #   Fixed once so the "no image" trajectory is coherent across denoising steps.
+        # Pre-compute boolean mask for cfg_drop_image: identifies which tokens are
+        # image-conditioned (frame 0). These tokens will be REMOVED from the sequence
+        # for the CFG negative pass, so the transformer sees a shorter video with no
+        # image anchor. The CFG delta is then only applied to the non-conditioned tokens.
         if config.cfg_drop_image:
-            i2v_cond_mask = (video_state.denoise_mask < 1.0).float()
-            i2v_noise = torch.randn_like(video_state.latent)
+            # (B, N, 1) bool — True at image-conditioned positions (where denoise_mask < 1)
+            cond_token_mask = (video_state.denoise_mask < 1.0).squeeze(-1)  # (B, N)
+            uncond_token_mask = ~cond_token_mask  # (B, N) — True at non-conditioned tokens
 
         with torch.autocast(device_type=str(device).split(":")[0], dtype=torch.bfloat16):
             for step_idx, sigma in enumerate(sigmas[:-1]):
@@ -593,40 +591,46 @@ class ValidationSampler:
                 denoised_video, denoised_audio = pos_video, pos_audio
 
                 # ── Text CFG with optional image drop ─────────────────────────
-                # When cfg_drop_image=True (STIV JIT-CFG style), the negative pass uses
-                # a fully unconditional baseline (no text, no image) instead of the standard
-                # "negative text + image" baseline. This makes the CFG delta include the
-                # image's contribution: output = V_∅ + cfg * (V_TI - V_∅)
-                # vs standard: output = V_I + cfg * (V_TI - V_I)
-                #
-                # The "no image" Modality (video_noimg) replaces clean image tokens at
-                # conditioned positions (frame 0) with flow-matching-noised versions:
-                #   noisy = (1 - sigma) * clean + sigma * noise
-                # (matching training_strategies/video_to_video.py line 136)
-                # and sets all timesteps to sigma (no "clean anchor" hint).
-                # We do NOT modify video_state.denoise_mask — that's used in post-processing
-                # after guidance to force clean tokens back at conditioned positions.
-
-                if config.cfg_drop_image:
-                    noised_cond = (1 - sigma) * video_clean_state.latent + sigma * i2v_noise
-                    noimg_latent = video.latent * (1 - i2v_cond_mask) + noised_cond * i2v_cond_mask
-                    video_noimg = replace(
-                        video,
-                        latent=noimg_latent,
-                        timesteps=torch.full_like(video.timesteps, sigma),
-                    )
-
                 if cfg_guider.enabled() and v_ctx_neg is not None:
                     if config.cfg_drop_image:
-                        video_neg = replace(video_noimg, context=v_ctx_neg)
-                    else:
-                        video_neg = replace(video, context=v_ctx_neg)
-                    audio_neg = replace(audio, context=a_ctx_neg) if audio is not None else None
-                    neg_video, neg_audio = x0_model(video=video_neg, audio=audio_neg, perturbations=None)
+                        # cfg_drop_image: REMOVE image-conditioned tokens from the negative
+                        # pass entirely. The transformer sees a shorter sequence (frames 1-N
+                        # only, no frame 0 anchor). Positions are kept as-is so the model
+                        # knows these are frames 1+. CFG delta is only applied to
+                        # non-conditioned tokens; frame 0 is untouched by guidance.
+                        #
+                        # uncond_token_mask: (B, N) bool — True at non-conditioned tokens
+                        # Shapes: latent (B, N, D), timesteps (B, N), positions (B, 3, N)
+                        mask = uncond_token_mask[0]  # (N,) — same for all batch items (B=1)
 
-                    denoised_video = denoised_video + cfg_guider.delta(pos_video, neg_video)
-                    if audio is not None and denoised_audio is not None:
-                        denoised_audio = denoised_audio + cfg_guider.delta(pos_audio, neg_audio)
+                        # Build shorter Modality with conditioned tokens removed
+                        video_short = replace(
+                            video,
+                            latent=video.latent[:, mask],       # (B, N', D)
+                            timesteps=video.timesteps[:, mask], # (B, N')
+                            positions=video.positions[:, :, mask],  # (B, 3, N')
+                            context=v_ctx_neg,
+                        )
+                        neg_short, _ = x0_model(video=video_short, audio=audio, perturbations=None)
+
+                        # Apply CFG delta only to the non-conditioned tokens.
+                        # pos_video and neg_short both have predictions for the same tokens
+                        # (just pos_video is full-length, so we index into it with mask).
+                        # cfg_guider.delta = (scale - 1) * (cond - uncond)
+                        delta = cfg_guider.delta(pos_video[:, mask], neg_short)
+                        denoised_video = denoised_video.clone()
+                        denoised_video[:, mask] = denoised_video[:, mask] + delta
+                    else:
+                        # Standard text CFG: negative pass keeps image conditioning.
+                        # Both positive and negative passes see the same image anchor;
+                        # only the text embedding differs.
+                        video_neg = replace(video, context=v_ctx_neg)
+                        audio_neg = replace(audio, context=a_ctx_neg) if audio is not None else None
+                        neg_video, neg_audio = x0_model(video=video_neg, audio=audio_neg, perturbations=None)
+
+                        denoised_video = denoised_video + cfg_guider.delta(pos_video, neg_video)
+                        if audio is not None and denoised_audio is not None:
+                            denoised_audio = denoised_audio + cfg_guider.delta(pos_audio, neg_audio)
 
                 # Apply STG if stg_scale != 0.0
                 if stg_guider.enabled() and stg_perturbation_config is not None:

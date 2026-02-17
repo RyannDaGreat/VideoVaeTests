@@ -7,7 +7,7 @@ local defaults = {
   keyframes: "random 8",  // list of ints, or "random N" string (randomness controlled by seed)
   num_diffusion_steps: 20,
   guidance_scale: 4.0,  // text CFG (default 4.0); 1.0=disabled
-  cfg_drop_image: false,  // true: CFG negative pass drops image (fully unconditional baseline, STIV JIT-CFG); false: negative pass keeps image (standard LTX)
+  cfg_drop_image: true,  // true: CFG negative pass drops image (fully unconditional baseline, STIV JIT-CFG); false: negative pass keeps image (standard LTX)
   ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes. Empirically, not sure it matters...
   stage_2: { enabled: true },
   batch_title: "%s_%dx%d_%dstep" % [self.batch_name, self.width, self.height, self.num_diffusion_steps],
