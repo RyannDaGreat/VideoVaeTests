@@ -40,25 +40,25 @@ local subjects = {
   },
 };
 
-// 4x4 cross product: cfg_drop_image [0, 0.5, 1, 2] × guidance_scale [4, 8, 12, 16]
-// All with 40 keyframes
+// 4x4 cross product: cfg_drop_image [0, 1, 2, 4] × keyframes [10, 20, 40, 70]
+// All at guidance_scale 4
 local sweep = [
-  { keyframes: "random 40", cfg_drop_image: 0,   guidance_scale: 4 },
-  { keyframes: "random 40", cfg_drop_image: 0,   guidance_scale: 8 },
-  { keyframes: "random 40", cfg_drop_image: 0,   guidance_scale: 12 },
-  { keyframes: "random 40", cfg_drop_image: 0,   guidance_scale: 16 },
-  { keyframes: "random 40", cfg_drop_image: 0.5, guidance_scale: 4 },
-  { keyframes: "random 40", cfg_drop_image: 0.5, guidance_scale: 8 },
-  { keyframes: "random 40", cfg_drop_image: 0.5, guidance_scale: 12 },
-  { keyframes: "random 40", cfg_drop_image: 0.5, guidance_scale: 16 },
-  { keyframes: "random 40", cfg_drop_image: 1,   guidance_scale: 4 },
-  { keyframes: "random 40", cfg_drop_image: 1,   guidance_scale: 8 },
-  { keyframes: "random 40", cfg_drop_image: 1,   guidance_scale: 12 },
-  { keyframes: "random 40", cfg_drop_image: 1,   guidance_scale: 16 },
-  { keyframes: "random 40", cfg_drop_image: 2,   guidance_scale: 4 },
-  { keyframes: "random 40", cfg_drop_image: 2,   guidance_scale: 8 },
-  { keyframes: "random 40", cfg_drop_image: 2,   guidance_scale: 12 },
-  { keyframes: "random 40", cfg_drop_image: 2,   guidance_scale: 16 },
+  { cfg_drop_image: 0, keyframes: "random 10" },
+  { cfg_drop_image: 0, keyframes: "random 20" },
+  { cfg_drop_image: 0, keyframes: "random 40" },
+  { cfg_drop_image: 0, keyframes: "random 70" },
+  { cfg_drop_image: 1, keyframes: "random 10" },
+  { cfg_drop_image: 1, keyframes: "random 20" },
+  { cfg_drop_image: 1, keyframes: "random 40" },
+  { cfg_drop_image: 1, keyframes: "random 70" },
+  { cfg_drop_image: 2, keyframes: "random 10" },
+  { cfg_drop_image: 2, keyframes: "random 20" },
+  { cfg_drop_image: 2, keyframes: "random 40" },
+  { cfg_drop_image: 2, keyframes: "random 70" },
+  { cfg_drop_image: 4, keyframes: "random 10" },
+  { cfg_drop_image: 4, keyframes: "random 20" },
+  { cfg_drop_image: 4, keyframes: "random 40" },
+  { cfg_drop_image: 4, keyframes: "random 70" },
 ];
 
 // ── Test generator (applies a sweep to a base config) ───────────────────────
