@@ -7,10 +7,10 @@ local defaults = {
   keyframes: "random 8",  // list of ints, or "random N" string (randomness controlled by seed)
   num_diffusion_steps: 20,
   guidance_scale: 4.0,  // text CFG (default 4.0); 1.0=disabled
-  i2v_guidance_scale: 0.0,  // image conditioning CFG (default 0.0=disabled, no extra passes); >0 amplifies image guidance (3 passes when both enabled)
-  ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes
+  cfg_drop_image: false,  // true: CFG negative pass drops image (fully unconditional baseline, STIV JIT-CFG); false: negative pass keeps image (standard LTX)
+  ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes. Empirically, not sure it matters...
   stage_2: { enabled: true },
-  batch_title: "kf_sweep_%s_%dx%d_%dstep" % [self.batch_name, self.width, self.height, self.num_diffusion_steps],
+  batch_title: "%s_%dx%d_%dstep" % [self.batch_name, self.width, self.height, self.num_diffusion_steps],
 };
 
 local res_480p = {
@@ -52,15 +52,16 @@ local kf_sweep = [
   { keyframes: "random 80" },
 ];
 
-local i2v_sweep = [
-  { i2v_guidance_scale: 0 },
-  { i2v_guidance_scale: 1.00001 },
-  { i2v_guidance_scale: 1.01 },
-  { i2v_guidance_scale: 1.02 },
-  { i2v_guidance_scale: 1.05 },
-  { i2v_guidance_scale: 1.1 },
-  { i2v_guidance_scale: 1.2 },
-  { i2v_guidance_scale: 1.4 },
+// 2x4 cross product: keyframes [10, 20] × guidance_scale [2, 4, 6, 10]
+local cfg_kf_sweep = [
+  { keyframes: "random 10", guidance_scale: 1.001 },
+  { keyframes: "random 10", guidance_scale: 1.1 },
+  { keyframes: "random 10", guidance_scale: 1.3 },
+  { keyframes: "random 10", guidance_scale: 4 },
+  { keyframes: "random 20", guidance_scale: 1.001 },
+  { keyframes: "random 20", guidance_scale: 1.1 },
+  { keyframes: "random 20", guidance_scale: 1.3 },
+  { keyframes: "random 20", guidance_scale: 4 },
 ];
 
 // ── Test generator (applies a sweep to a base config) ───────────────────────
@@ -72,12 +73,11 @@ local make_tests(config, sweep) = [
 ];
 
 local overrides = {
-  // i2v_guidance_scale: 4,
-  keyframes: "random 32",  // list of ints, or "random N" string (randomness controlled by seed)
+  keyframes: "random 40",
   height: 320,
-  width:512,
-  num_frames: 49,
-} + res_480p;
+  width: 512,
+  num_frames: 121,
+} ;
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-make_tests(defaults + subjects.fish + overrides, i2v_sweep)
+make_tests(defaults + subjects.fish + overrides, cfg_kf_sweep)
