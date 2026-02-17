@@ -48,6 +48,96 @@ local subjects = {
       The background features shallow depth of field, maintaining a warm, dusty, cinematic atmosphere. Behind a barrier of silver, galvanized steel horizontal pipe fencing, there is a long white painted cinderblock wall, a tan building with a brown pitched roof, and lush green foliage beneath a clear pale blue sky. As the camera tracks the horse, a small green plastic step stool briefly passes through the frame near the fence line, grounding the epic action in a realistic environment.
     |||,
   },
+  horse_armor_with_mongol: {
+    batch_name: "horse_armor_with_mongol",
+    input_video: "raw_inputs/horse_slowmo.mp4",
+    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    caption: |||
+      Cinematic slow-motion tracking shot, keeping the subjects perfectly centered in a medium-wide frame under bright, natural sunlight coming from slightly above and in front of the lens. The camera glides smoothly alongside a magnificent, highly muscular solid black horse galloping powerfully from left to right across a soft, light-tan sandy riding arena. A formidable Mongolian warrior sits confidently astride the horse, dressed in traditional leather lamellar armor, a fur-trimmed conical helmet, and intricately patterned silk garments, leaning slightly forward in a focused, commanding posture.
+      The horse is heavily outfitted to match, wearing beautiful Mongolian-style armor that includes a detailed leather neck guard and chest piece with gleaming metal accents, resting under an ornate traditional saddle. Where exposed, the horse's sleek dark coat reflects the daylight, highlighting its defined musculature, while its long, thick black tail flows dramatically in the wind. As the horse's hooves strike the soft sand, small, distinct plumes of warm dust kick up into the air.
+      The background features a shallow depth of field, maintaining a warm, dusty, cinematic atmosphere. Behind a barrier of silver, galvanized steel horizontal pipe fencing, there is a long white painted cinderblock wall, a tan building with a brown pitched roof, and lush green foliage beneath a clear pale blue sky. As the camera tracks the rider and horse, a small green plastic step stool briefly passes through the frame near the fence line, grounding the epic, historical subjects within a realistic, modern environment.
+    |||,
+  },
+  horse_robot: {
+    batch_name: "horse_robot",
+    input_video: "raw_inputs/horse_slowmo.mp4",
+    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    caption: |||
+      A wide-angle cinematic shot captures a lifelike robotic horse, constructed from high-polish brushed chrome and articulated steel plates, galloping through a dusty, sun-bleached outdoor corral. The lighting is harsh midday sun, creating sharp specular highlights on the horse's metallic flanks and deep, rhythmic shadows within the exposed gears of its joints. As the machine moves, a subtle heat haze shimmers from its internal cooling vents, and its optical sensors glow with a steady, piercing blue light.
+      The camera performs a smooth lateral tracking shot, keeping pace with the robot's powerful stride at a low angle to emphasize its weight and mechanical force. Puffs of fine sand erupt from beneath its heavy steel hooves with every impact, lingering in the air as a golden mist. The background of weathered wooden fences and distant arid hills is rendered with a shallow depth of field, keeping the focus entirely on the fluid, hydraulic motion of the horse's piston-driven neck and wire-mesh mane.
+      The scene is defined by high-contrast textures—the sleek, reflective surface of the "skin" against the gritty, matte reality of the desert sand. Every movement is captured with slight motion blur on the hooves to convey speed, while the torso remains stabilized and sharp. The atmosphere is grounded and industrial, stripping away sci-fi tropes in favor of a raw, documentary-style observation of advanced robotics in a rustic environment.
+    |||,
+  },
+  horse_grass_field: {
+    batch_name: "horse_grass_field",
+    input_video: "raw_inputs/horse_slowmo.mp4",
+    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    caption: |||
+      Cinematic tracking shot, wide angle, side profile. A magnificent, muscular solid black horse gallops with powerful strides from left to right across a vast, lush emerald-green grassy field. The horse's coat is exceptionally glossy, creating brilliant wet-look highlights that ripple over its shoulders and flanks under the bright, natural afternoon sun. Its thick black mane and tail billow and flow elegantly in slow motion, trailing behind its powerful frame.
+      The camera tracks at a consistent speed alongside the horse, maintaining a steady, smooth lateral movement that keeps the animal centered against a soft-focus background. The ground is covered in dense, vibrant grass; as the horse's hooves strike the turf, small blades of grass and dew droplets are kicked into the air rather than dust. The environment is open and expansive, with distant rolling hills and a few scattered oak trees under a clear, pale blue sky.
+      The lighting is high-contrast and warm, coming from a high side-angle to emphasize the horse's defined musculature and the texture of the grass. A slight motion blur on the background enhances the sense of speed, while a shallow depth of field keeps the focus sharply on the sleek, dark texture of the horse. The overall atmosphere is majestic and serene, capturing the raw power of the animal in a pristine natural setting.
+    |||,
+  },
+  horse_nyancat: {
+    batch_name: "horse_nyancat",
+    input_video: "raw_inputs/horse_slowmo.mp4",
+    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    caption: |||
+      Cinematic slow-motion tracking shot. A magnificent, highly muscular solid black unicorn gallops from left to right across a sandy outdoor riding arena, captured in a smooth handheld tracking shot that keeps the subject perfectly centered. A giant, spiraled horn protrudes prominently from its forehead, catching the sunlight. The unicorn's coat is exceptionally glossy and sleek, reflecting the bright daylight and highlighting its well-defined musculature, particularly along its shoulder, flanks, and ribcage. Its long, thick black mane flows dramatically in the air due to the speed and slow-motion effect. As the unicorn gallops, a vibrant, surreal stream of colorful rainbows is expelled from its rear, trailing behind it in the air, mixing with the small, distinct plumes of dust kicked up by its hooves hitting the light-tan sand.
+      The unicorn is contained behind a barrier of silver, galvanized steel corral fencing made of horizontal metal pipes passing in a blur. The background features a bright, sunny daytime environment with a clear, pale blue sky. Behind the metal fencing, there is a mix of structures: a long, white painted cinderblock wall or low building, a tan building with a brown pitched roof, and various lush green trees and foliage. At one point in the tracking shot, a small, green plastic step stool or mounting block is visible inside the arena near the fence line.
+      The lighting is bright natural sunlight coming from slightly above and in front of the camera, creating intense, wet-looking highlights on the unicorn's dark coat and casting sharp shadows on the sand, enhancing the surreal contrast between the realistic setting and the magical action. The atmosphere is warm and dusty but punctuated by the fantastical, vivid colors of the rainbow trail.
+    |||,
+  },
+  horse_stadium: {
+    batch_name: "horse_stadium",
+    input_video: "raw_inputs/horse_slowmo.mp4",
+    first_frame: "raw_inputs/horse_armor_firstframe.png",
+    caption: |||
+      Cinematic wide tracking shot in slow-motion, following a magnificent, muscular solid black horse galloping with power from left to right. The horse's coat is exceptionally glossy, reflecting the bright overhead stadium lights that highlight the ripple of its muscles along its shoulders and flanks. Its thick black mane and tail flow dramatically behind it. As its hooves strike the light-tan sand of the arena floor, small plumes of dust kick up into the air.
+      The background is a packed, sun-drenched sports stadium. Rows of spectators fill the grandstands behind a professional white perimeter wall, their forms slightly soft-focused to create a shallow depth of field. The crowd is visible as a sea of movement, with people leaning forward and gesturing in excitement as the horse passes. The lighting is a mix of bright natural daylight and the high-intensity glow of stadium floodlights, creating a high-contrast, epic atmosphere with subtle lens flares.
+      The camera moves with smooth, motorized precision, keeping pace with the horse's gallop to maintain a perfect profile view. The composition is grounded and professional, capturing the scale of the arena. There is a clear sense of speed and weight, emphasized by the motion blur of the stadium seating in the far distance and the sharp, crisp detail of the horse in the foreground.
+    |||,
+  },
+  minecraft_horse_stable: {
+    batch_name: "mc_horse_stable",
+    input_video: "raw_inputs/horse_slowmo.mp4",
+    first_frame: "raw_inputs/minecraft_horse_stable.png",
+    caption: |||
+      A Minecraft-style blocky black horse with a blue and brown saddle trots from left to right inside a wooden-fenced stable area. The horse is rendered in the distinctive low-polygon, voxel aesthetic of Minecraft, with flat-shaded surfaces and sharp geometric edges. Its blocky legs move in a stiff, game-like animation cycle as it crosses the sandy ground.
+      The environment is a classic Minecraft stable scene: oak wood plank fences form the corral, with a white quartz block wall and dark oak wood staircase structure in the background. The ground is smooth sandstone. The sky is a clear Minecraft blue with simple white rectangular clouds.
+      The lighting is Minecraft's characteristic flat, ambient illumination with soft directional shadows. The entire scene maintains the game's iconic pixelated texture resolution and cubic geometry, creating a charming, toy-like atmosphere.
+    |||,
+  },
+  minecraft_horse_saddle_stable: {
+    batch_name: "mc_horse_saddle",
+    input_video: "raw_inputs/horse_slowmo.mp4",
+    first_frame: "raw_inputs/minecraft_horse_saddle_stable.png",
+    caption: |||
+      A Minecraft-style blocky black horse without a saddle trots from left to right inside a wooden-fenced stable corral. The horse has the distinctive cubic, low-polygon Minecraft aesthetic with flat-shaded dark surfaces and angular geometric limbs. Its mane is a simple dark rectangular extrusion along its blocky neck.
+      The stable environment features oak wood plank fences, a white quartz block wall, and dark oak wood staircase structures forming the roof and walls in the background. The sandy ground is flat sandstone blocks. A wooden gate is visible to the right side of the corral.
+      The scene is lit with Minecraft's flat ambient lighting and gentle directional shadows. All textures maintain the game's signature pixelated, 16x16 resolution look. The sky shows classic Minecraft blue with blocky white clouds.
+    |||,
+  },
+  minecraft_horse_steve_stable: {
+    batch_name: "mc_steve_stable",
+    input_video: "raw_inputs/horse_slowmo.mp4",
+    first_frame: "raw_inputs/minecraft_horse_steve_stable.png",
+    caption: |||
+      Minecraft's Steve character rides a blocky black horse from left to right inside a wooden-fenced stable corral. Steve sits upright on a brown saddle, wearing his iconic cyan t-shirt and dark pants, his blocky arms held forward. The horse moves with the stiff, game-like animation typical of Minecraft, its cubic legs cycling beneath it.
+      The stable is built from oak wood plank fences and dark oak wood structures, with a white quartz block wall in the background. The ground is flat sandstone. The environment captures the cozy, enclosed feel of a player-built Minecraft horse stable.
+      Minecraft's characteristic flat lighting illuminates the scene with soft shadows. All geometry is strictly cubic and voxel-based. Textures are the game's signature low-resolution pixel art. The atmosphere is warm and playful.
+    |||,
+  },
+  minecraft_horse_steve_meadow: {
+    batch_name: "mc_steve_meadow",
+    input_video: "raw_inputs/horse_slowmo.mp4",
+    first_frame: "raw_inputs/minecraft_horse_steve_meadow.png",
+    caption: |||
+      Minecraft's Steve character rides a blocky black horse from left to right across a lush meadow biome. Steve sits atop a brown saddle in his iconic cyan shirt, riding confidently through the open landscape. The horse gallops with Minecraft's characteristic stiff-legged animation across green grass blocks dotted with small white and yellow flowers.
+      The background is a panoramic Minecraft landscape: a winding blue river cuts through the grassy terrain, with a cluster of village buildings featuring tan walls and brown roofs nestled among dark oak and birch trees. Rolling green hills and blocky mountain peaks rise in the distance under a bright blue sky with flat white clouds.
+      The scene is rendered in Minecraft's distinctive voxel style with pixelated textures and cubic geometry throughout. The lighting is bright and cheerful with the game's ambient illumination. The wide composition captures the sense of open-world adventure and exploration.
+    |||,
+  },
 };
 
 
@@ -59,17 +149,17 @@ local make_tests(config, sweep) = [
   for i in std.range(0, std.length(sweep) - 1)
 ];
 
-// 2x4 cross product: resolution [720p, 480p] × keyframes [8, 16, 32, 48]
-local sweep = [
-  res_720p + { keyframes: "random 8" },
-  res_720p + { keyframes: "random 16" },
-  res_720p + { keyframes: "random 32" },
-  res_720p + { keyframes: "random 48" },
-  res_480p + { keyframes: "random 8" },
-  res_480p + { keyframes: "random 16" },
-  res_480p + { keyframes: "random 32" },
-  res_480p + { keyframes: "random 48" },
-];
+// One test per subject at 720p with 32 keyframes — all horses except horse_armor
+local sweep = [{}];  // single entry, no overrides (defaults handle everything)
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-make_tests(defaults + subjects.horse_armor, sweep)
+local base = defaults + res_720p + { keyframes: "random 32" };
+make_tests(base + subjects.horse_armor_with_mongol, sweep)
++ make_tests(base + subjects.horse_robot, sweep)
++ make_tests(base + subjects.horse_grass_field, sweep)
++ make_tests(base + subjects.horse_nyancat, sweep)
++ make_tests(base + subjects.horse_stadium, sweep)
++ make_tests(base + subjects.minecraft_horse_stable, sweep)
+// + make_tests(base + subjects.minecraft_horse_saddle_stable, sweep)
++ make_tests(base + subjects.minecraft_horse_steve_stable, sweep)
++ make_tests(base + subjects.minecraft_horse_steve_meadow, sweep)
