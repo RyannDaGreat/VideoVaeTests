@@ -397,7 +397,15 @@ local slowmo_subjects = [
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
 // 45 sweep points (5 ckpt × 3 cdi × 3 kf) × 11 subjects = 495 tests total
-// Checkpoint is outermost: ALL subjects run at step 50000 before ANY run at 25000, etc.
+//
+// Iteration order (outermost → innermost):
+//   1. checkpoint  (50000 → 25000 → 10000 → 5000 → 1000)
+//   2. cfg_drop_image  (0 → 1 → 2)
+//   3. keyframes  (16 → 32 → 64)
+//   4. subject  (all 11 subjects per sweep point)
+//
+// This means: all 99 tests at ckpt 50000 run before any at 25000, etc.
+// Within a checkpoint, all subjects cycle through each cdi×kf combo.
 local base = defaults + { num_diffusion_steps: 50 };
 local all_subjects = normal_subjects + slowmo_subjects;
 [
