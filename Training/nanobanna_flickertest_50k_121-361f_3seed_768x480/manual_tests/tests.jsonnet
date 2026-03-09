@@ -11,6 +11,7 @@ local defaults = {
   cfg_drop_image: 2,  // 0=standard CFG (neg pass keeps image), 1=neg pass drops image tokens entirely, 0-1 blends both (3 passes)
   ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes. Empirically, not sure it matters...
   stage_2: { enabled: true },
+  frame_rate: 25.0,  // FPS conditioning — normalizes temporal position embeddings. Match source video fps.
   save_stage2_comparison_video: true,  // save raw input vs stage 2 output side-by-side comparison
   batch_title: "%s_%dx%d_%dstep" % [self.batch_name, self.width, self.height, self.num_diffusion_steps],
 };
@@ -244,6 +245,31 @@ local subjects = {
     first_frame: "raw_inputs/black_woman_firstframe.png",
     caption: "A cinematic medium close-up, shot in slow motion with soft studio lighting, establishes a young Black woman in the foreground wearing a pale green knit sweater, a thin gold chain, and white wireless earbuds. She has straight dark hair cut to shoulder length in a sleek bob. Behind her, slightly out of focus due to a shallow depth of field, a warm-toned indoor setting is faintly visible with soft furnishings and a green houseplant. The camera remains locked in a static position as the woman begins with her head tilted back, her eyes squeezed shut, and her hands raised near her shoulders with fingers curled. Slowly, she brings both palms down to press firmly against her temples, her brow furrowing deeply while her eyes remain closed. Suddenly, she snaps her eyes open, dropping her hands and throwing them outward with splayed fingers. Her jaw drops into an exaggerated, wide-eyed expression, her mouth open as she stares intently past the camera lens.",
   },
+  // ── Previz subjects (24fps CG/VFX) ──────────────────────────────────────
+  otis_previz: {
+    batch_name: "otis_previz",
+    input_video: "raw_inputs/OTIS_PREVIS_beautyJPG.mp4",
+    first_frame: "raw_inputs/otis_beauty_firstframe.png",
+    frame_rate: 24.0,  // native fps of source
+    num_frames: 105,   // 105 % 8 == 1, matches source exactly
+    caption: |||
+      A dramatic elevated nighttime shot of a large white motor yacht struggling through a violent storm at sea. The camera holds at a slightly overhead angle, capturing the vessel's full profile as it pitches and rolls through enormous dark waves. A warm amber deck light near the bow cuts through the heavy spray, casting a sharp glow against the wet hull and churning foam while the rest of the scene is swallowed by pitch-black sky.
+      Massive swells surge past the hull, sending thick curtains of white sea spray and mist streaming across the frame. The ocean surface is a chaotic landscape of deep troughs and cresting peaks, with turbulent foam wrapping around the waterline and trailing off behind the stern. The boat's radar mast, antennas, and cabin superstructure are silhouetted against the spray clouds, rocking with the vessel's heavy motion.
+      The lighting is stark and cinematic — the single warm deck light creates a dramatic contrast against the cold, dark ocean and featureless black sky. Dense mist and airborne water droplets catch the light, producing a soft atmospheric haze around the vessel.
+    |||,
+  },
+  tlst_previz: {
+    batch_name: "tlst_previz",
+    input_video: "raw_inputs/TLST_PREVIS_beautyJPG.mp4",
+    first_frame: "raw_inputs/tlst_beauty_firstframe.png",
+    frame_rate: 24.0,  // native fps of source
+    num_frames: 241,   // 241 % 8 == 1, trimmed from 244 source frames
+    caption: |||
+      A harrowing storm sequence follows a small wooden sailboat battling mountainous ocean swells. The scene opens from the deck in a low-angle close-up: a figure in a weathered rust-orange rain jacket grips the rigging with both hands, bracing against the violent rocking as sheets of rain and spray lash across the frame. Wet ropes, metal fittings, and a billowing white sail fill the foreground, with the chaotic gray sky barely visible through the deluge.
+      The camera pulls back dramatically to a wide aerial perspective, revealing the full scale of the storm. The small sailboat, its single mast and pale sail now tiny against the scene, is nearly swallowed by towering blue-gray waves that dwarf the vessel from every direction. Massive swells crest and roll with heavy, churning white foam, and a bright orange life preserver ring is visible on the stern as the boat slides down into deep wave troughs.
+      The color palette is cold and desaturated — steely blue-gray water, overcast sky blending into the ocean at the horizon, with the orange jacket and life ring providing the only warm accents. Heavy atmospheric haze from rain and spray reduces visibility, creating depth and scale.
+    |||,
+  },
 };
 
 
@@ -255,41 +281,25 @@ local make_tests(config, sweep) = [
   for i in std.range(0, std.length(sweep) - 1)
 ];
 
-// Overnight sweep: cdi [0,1,2,4] × res [480p,720p] × kf [8,16,32,40,64] × all subjects
-// 4 × 2 × 5 × 8 = 320 tests. 30 diffusion steps. 480p first.
-local cdi_values = [1, 0, 2, 3, 4];
-local kf_values = [100, 64, 32, 16];//[8, 16, 32, 40, 64];
-local resolutions = [res_720p];//, res_720p];
+// ── Previz sweep: cdi [0,1,2] × kf [16,32,64] × 2 subjects ─────────────
+// 3 × 3 × 2 = 18 tests. 1152x736. Stage 2 enabled.
+local cdi_values = [0, 1, 2];
+local kf_values = [16, 32, 64];
 
 local sweep = [
-  res + { cfg_drop_image: cdi, keyframes: "random %d" % kf }
-  for res in resolutions
+  { cfg_drop_image: cdi, keyframes: "random %d" % kf }
   for cdi in cdi_values
   for kf in kf_values
 ];
 
-local all_subjects = [
-  subjects.asian_man_male,
-  subjects.asian_woman_1920s,
-  subjects.asian_woman_bold_lip,
-  subjects.asian_woman_bold_makeup,
-  subjects.asian_woman_clown,
-  subjects.asian_woman_elderly,
-  subjects.asian_woman_greenscreen,
-  subjects.asian_woman_male,
-  subjects.asian_woman_mime,
-  subjects.asian_woman_moody,
-  subjects.asian_woman_pierced,
-  subjects.asian_woman_south_asian,
-  subjects.asian_woman_spaceship,
-  subjects.asian_woman_striped,
-  subjects.asian_woman_white_woman,
-  subjects.black_woman,
+local previz_subjects = [
+  subjects.otis_previz,
+  subjects.tlst_previz,
 ];
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
-local base = defaults + { num_diffusion_steps: 50 , };
+local base = defaults + { num_diffusion_steps: 50 };
 std.flatMap(
   function(subj) make_tests(base + subj, sweep),
-  all_subjects,
+  previz_subjects,
 )

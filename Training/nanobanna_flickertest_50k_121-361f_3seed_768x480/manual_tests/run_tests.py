@@ -759,6 +759,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--guidance-scale", str(t.get("guidance_scale", 4.0)),
             "--cfg-drop-image", str(t.get("cfg_drop_image", 0.0)),
             "--seed", str(t.get("seed", 42)),
+            "--frame-rate", str(t.get("frame_rate", 25.0)),
             "--skip-audio",
             "--include-reference-in-output",
             "--device", f"cuda:{gpu_id}",
