@@ -11,6 +11,7 @@ local defaults = {
   cfg_drop_image: 2,  // 0=standard CFG (neg pass keeps image), 1=neg pass drops image tokens entirely, 0-1 blends both (3 passes)
   ref_first_frame: false,  // true: ref video frame 0 = condition image; false: ref video is purely NN-filled keyframes. Empirically, not sure it matters...
   stage_2: { enabled: true },
+  checkpoint: "latest",  // "latest" (highest step) or int step number (e.g. 50000)
   frame_rate: 25.0,  // FPS conditioning — normalizes temporal position embeddings. Match source video fps.
   save_stage2_comparison_video: true,  // save raw input vs stage 2 output side-by-side comparison
   batch_title: "%s_%dx%d_%dstep" % [self.batch_name, self.width, self.height, self.num_diffusion_steps],
@@ -263,12 +264,93 @@ local subjects = {
     input_video: "raw_inputs/TLST_PREVIS_beautyJPG.mp4",
     first_frame: "raw_inputs/tlst_beauty_firstframe.png",
     frame_rate: 24.0,  // native fps of source
-    num_frames: 241,   // 241 % 8 == 1, trimmed from 244 source frames
+    num_frames: 121,   // 121 % 8 == 1; source has 244f but 1152x736 maxes at 121f (13,248 tokens)
     caption: |||
       A harrowing storm sequence follows a small wooden sailboat battling mountainous ocean swells. The scene opens from the deck in a low-angle close-up: a figure in a weathered rust-orange rain jacket grips the rigging with both hands, bracing against the violent rocking as sheets of rain and spray lash across the frame. Wet ropes, metal fittings, and a billowing white sail fill the foreground, with the chaotic gray sky barely visible through the deluge.
       The camera pulls back dramatically to a wide aerial perspective, revealing the full scale of the storm. The small sailboat, its single mast and pale sail now tiny against the scene, is nearly swallowed by towering blue-gray waves that dwarf the vessel from every direction. Massive swells crest and roll with heavy, churning white foam, and a bright orange life preserver ring is visible on the stern as the boat slides down into deep wave troughs.
       The color palette is cold and desaturated — steely blue-gray water, overcast sky blending into the ocean at the horizon, with the orange jacket and life ring providing the only warm accents. Heavy atmospheric haze from rain and spray reduces visibility, creating depth and scale.
     |||,
+  },
+  // ── Last-2/3 TLST (first third cut — bad footage) ──────────────────────
+  // 163 normal frames, 325 slowmo frames. Different first frame and prompt.
+  local _tlst_l23_caption = |||
+    A wide aerial shot captures a small wooden sailboat engulfed by mountainous ocean swells during a violent storm. The vessel, its single mast and pale sail barely visible, is nearly swallowed by towering blue-gray waves that dwarf it from every direction. An orange life preserver ring on the stern provides a small point of warm color against the cold, churning sea. Massive swells crest and roll with heavy white foam as the boat pitches and slides through deep wave troughs.
+    The camera slowly pulls back to reveal the full terrifying scale of the storm, the sailboat shrinking against the enormous wave faces. Thick curtains of rain and sea spray reduce visibility, creating layers of atmospheric haze that add depth to the scene. The waves move with slow, immense weight, their surfaces textured with wind-whipped spray and streaks of white foam.
+    The color palette is cold and desaturated — steely blue-gray water blending seamlessly into an overcast sky at the horizon. The lighting is flat and diffused through thick storm clouds, with no direct sun.
+  |||,
+  tlst_previz_l23: {
+    batch_name: "tlst_l23",
+    input_video: "raw_inputs/TLST_PREVIS_beautyJPG_last2thirds.mp4",
+    first_frame: "raw_inputs/tlst_beauty_last2thirds_firstframe.png",
+    frame_rate: 24.0,
+    num_frames: 121,  // max at 1152x736; source has 163f
+    caption: _tlst_l23_caption,
+  },
+  // ── Slowmo previz subjects (2x slowdown, 48fps conditioning) ────────────
+  // Same prompts and first frames as normal-speed, different driving videos.
+  // frame_rate=48 because original 24fps content was interpolated to 2x frames.
+  // Files are stored at 24fps on disk (compression), but model needs true temporal rate.
+  local _otis_slowmo_base = {
+    input_video: "raw_inputs/OTIS_PREVIS_beautyJPG.mp4_slowmo2x.mp4",
+    first_frame: "raw_inputs/otis_beauty_firstframe.png",
+    frame_rate: 48.0,
+    caption: subjects.otis_previz.caption,
+  },
+  local _tlst_slowmo_base = {
+    input_video: "raw_inputs/TLST_PREVIS_beautyJPG.mp4_slowmo2x.mp4",
+    first_frame: "raw_inputs/tlst_beauty_firstframe.png",
+    frame_rate: 48.0,
+    caption: subjects.tlst_previz.caption,
+  },
+  // Short tier: 121f @ 1152x736 (13,248 tokens — proven safe)
+  otis_slowmo_short: _otis_slowmo_base + {
+    batch_name: "otis_slo_short",
+    num_frames: 121,
+    width: 1152, height: 736,
+  },
+  tlst_slowmo_short: _tlst_slowmo_base + {
+    batch_name: "tlst_slo_short",
+    num_frames: 121,
+    width: 1152, height: 736,
+  },
+  // Medium tier: 201f @ 896x576 (13,104 tokens)
+  otis_slowmo_medium: _otis_slowmo_base + {
+    batch_name: "otis_slo_med",
+    num_frames: 201,
+    width: 896, height: 576,
+  },
+  tlst_slowmo_medium: _tlst_slowmo_base + {
+    batch_name: "tlst_slo_med",
+    num_frames: 201,
+    width: 896, height: 576,
+  },
+  // Long tier: 297f @ 768x480 (13,110 tokens) — TLST only (OTIS slowmo is only 209f)
+  tlst_slowmo_long: _tlst_slowmo_base + {
+    batch_name: "tlst_slo_long",
+    num_frames: 281,  // 281 % 8 == 1; max at 768x480 = 12,960 tokens
+    width: 768, height: 480,
+  },
+  // ── Last-2/3 TLST slowmo subjects ──────────────────────────────────────
+  local _tlst_l23_slowmo_base = {
+    input_video: "raw_inputs/TLST_PREVIS_beautyJPG_slowmo2x_last2thirds.mp4",
+    first_frame: "raw_inputs/tlst_beauty_last2thirds_firstframe.png",
+    frame_rate: 48.0,
+    caption: _tlst_l23_caption,
+  },
+  tlst_l23_slowmo_short: _tlst_l23_slowmo_base + {
+    batch_name: "tlst_l23_slo_s",
+    num_frames: 121,
+    width: 1152, height: 736,
+  },
+  tlst_l23_slowmo_medium: _tlst_l23_slowmo_base + {
+    batch_name: "tlst_l23_slo_m",
+    num_frames: 201,
+    width: 896, height: 576,
+  },
+  tlst_l23_slowmo_long: _tlst_l23_slowmo_base + {
+    batch_name: "tlst_l23_slo_l",
+    num_frames: 281,  // 281 % 8 == 1; max at 768x480 = 12,960 tokens
+    width: 768, height: 480,
   },
 };
 
@@ -281,25 +363,48 @@ local make_tests(config, sweep) = [
   for i in std.range(0, std.length(sweep) - 1)
 ];
 
-// ── Previz sweep: cdi [0,1,2] × kf [16,32,64] × 2 subjects ─────────────
-// 3 × 3 × 2 = 18 tests. 1152x736. Stage 2 enabled.
+// ── Sweep: checkpoint [50k→1k] × cdi [0,1,2] × kf [16,32,64] ───────────
+// Checkpoint is outermost: all tests for step 50000 run first, then 25000, etc.
+local checkpoint_steps = [50000, 25000, 10000, 5000, 1000];  // descending
 local cdi_values = [0, 1, 2];
 local kf_values = [16, 32, 64];
 
 local sweep = [
-  { cfg_drop_image: cdi, keyframes: "random %d" % kf }
+  { checkpoint: ckpt, cfg_drop_image: cdi, keyframes: "random %d" % kf }
+  for ckpt in checkpoint_steps  // outermost loop
   for cdi in cdi_values
   for kf in kf_values
 ];
 
-local previz_subjects = [
-  subjects.otis_previz,
-  subjects.tlst_previz,
+// Normal-speed previz (24fps)
+local normal_subjects = [
+  subjects.otis_previz,       // 105f @ 1152x736
+  subjects.tlst_previz,       // 121f @ 1152x736 (truncated from 244f)
+  subjects.tlst_previz_l23,   // 121f @ 1152x736 (last 2/3 of video)
+];
+
+// Slowmo previz (48fps, various resolution tiers)
+local slowmo_subjects = [
+  subjects.otis_slowmo_short,     // 121f @ 1152x736
+  subjects.otis_slowmo_medium,    // 201f @ 896x576
+  subjects.tlst_slowmo_short,     // 121f @ 1152x736
+  subjects.tlst_slowmo_medium,    // 201f @ 896x576
+  subjects.tlst_slowmo_long,      // 297f @ 768x480
+  subjects.tlst_l23_slowmo_short,  // 121f @ 1152x736 (last 2/3)
+  subjects.tlst_l23_slowmo_medium, // 201f @ 896x576  (last 2/3)
+  subjects.tlst_l23_slowmo_long,   // 297f @ 768x480  (last 2/3)
 ];
 
 // ── Active tests (compose: defaults + subject + optional overrides) ─────────
+// 45 sweep points (5 ckpt × 3 cdi × 3 kf) × 11 subjects = 495 tests total
+// Checkpoint is outermost: ALL subjects run at step 50000 before ANY run at 25000, etc.
 local base = defaults + { num_diffusion_steps: 50 };
-std.flatMap(
-  function(subj) make_tests(base + subj, sweep),
-  previz_subjects,
-)
+local all_subjects = normal_subjects + slowmo_subjects;
+[
+  base + subj + sweep_point + {
+    name: "%s_%d" % [subj.batch_name, i],
+  }
+  for i in std.range(0, std.length(sweep) - 1)
+  for sweep_point in [sweep[i]]
+  for subj in all_subjects
+]

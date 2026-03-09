@@ -252,6 +252,43 @@ def resolve_keyframes(keyframes, num_frames, seed):
     raise ValueError(f"Unknown keyframes format: {keyframes!r}")
 
 
+def resolve_checkpoint(checkpoint, checkpoints_dir):
+    """
+    Resolve checkpoint specification to a concrete file path.
+
+    Supports three formats:
+    - String "latest": find the highest-numbered checkpoint in checkpoints_dir.
+    - int (step number): format to lora_weights_step_{step:05d}.safetensors path.
+    - String (path): returned as-is (assumed to be a direct path).
+
+    Query — reads filesystem to find checkpoints, no side effects.
+
+    Args:
+        checkpoint: "latest", int step number, or string path.
+        checkpoints_dir (Path): directory containing lora_weights_step_*.safetensors.
+
+    Returns:
+        str: absolute path to the checkpoint file.
+
+    >>> # resolve_checkpoint("latest", Path("/some/checkpoints"))  # finds highest step
+    >>> # resolve_checkpoint(50000, Path("/some/checkpoints"))  # -> ".../lora_weights_step_50000.safetensors"
+    >>> # resolve_checkpoint("/explicit/path.safetensors", Path("/some/checkpoints"))  # -> "/explicit/path.safetensors"
+    """
+    if isinstance(checkpoint, int):
+        path = checkpoints_dir / f"lora_weights_step_{checkpoint:05d}.safetensors"
+        if not path.exists():
+            raise FileNotFoundError(f"Checkpoint not found: {path}")
+        return str(path)
+    if isinstance(checkpoint, str):
+        if checkpoint.strip().lower() == "latest":
+            ckpts = sorted(checkpoints_dir.glob("lora_weights_step_*.safetensors"))
+            if not ckpts:
+                raise FileNotFoundError(f"No checkpoints in {checkpoints_dir}")
+            return str(ckpts[-1])
+        return checkpoint  # treat as direct path
+    raise ValueError(f"Unknown checkpoint format: {checkpoint!r}")
+
+
 def make_batch_dirname(batch_title, step_name):
     """
     Generate a batch output directory name.
@@ -289,7 +326,7 @@ def format_duration(seconds):
     return f"{h}h {m}m {s}s"
 
 
-def collect_run_metadata(checkpoint_path, batch_dir):
+def collect_run_metadata(checkpoints, batch_dir):
     """
     Collect machine, environment, and git metadata for archival.
 
@@ -368,7 +405,7 @@ def collect_run_metadata(checkpoint_path, batch_dir):
 
     # Paths
     paths = {
-        "checkpoint": str(checkpoint_path),
+        "checkpoints": [str(c) for c in checkpoints] if isinstance(checkpoints, list) else str(checkpoints),
         "batch_dir": str(batch_dir),
         "repo_root": str(REPO_ROOT),
         "ltx_trainer": str(LTX_TRAINER),
@@ -467,6 +504,7 @@ _KEY_LABELS = {
     "i2v_guidance_scale": "i2v",
     "cfg_drop_image": "cdi",
     "ref_first_frame": "rff",
+    "checkpoint": "ckpt",
 }
 
 
@@ -527,6 +565,11 @@ def _format_value_for_name(key, value):
             return str(len(value))
         if isinstance(value, str) and value.startswith("random "):
             return value.split()[1]
+    if key == "checkpoint":
+        # Extract step number from path like ".../lora_weights_step_50000.safetensors"
+        import re
+        m = re.search(r"step_(\d+)", str(value))
+        return m.group(1) if m else _truncate_middle(str(value), 20)
     if isinstance(value, bool):
         return "1" if value else "0"
     if isinstance(value, float):
@@ -569,6 +612,7 @@ def _load_tests():
     Load tests from .jsonnet and resolve all string shorthands to concrete values.
 
     Resolves (in order):
+    - checkpoint: "latest" or int → concrete path
     - seed: int or "random" → concrete int
     - keyframes: list or "random N" → concrete sorted list (uses resolved seed)
     - name: auto-generated from batch_name + index + varying fields
@@ -576,6 +620,10 @@ def _load_tests():
     raw_json = _jsonnet.evaluate_file(str(TESTS_JSONNET))
     tests = json.loads(raw_json)
     for t in tests:
+        t["checkpoint"] = resolve_checkpoint(
+            t.get("checkpoint", "latest"),
+            CHECKPOINTS_DIR,
+        )
         t["seed"] = resolve_seed(t.get("seed", 42))
         t["keyframes"] = resolve_keyframes(
             t["keyframes"],
@@ -688,26 +736,27 @@ def generate_references(batch_dir=None):
     return ref_dir
 
 
-def run(checkpoint: str = None, skip_existing: bool = False):
-    """Generate references, then run inference on all tests. Saves to archival folder."""
+def run(skip_existing: bool = False):
+    """Generate references, then run inference on all tests. Saves to archival folder.
+
+    Checkpoints are specified per-test in tests.jsonnet (not as a CLI arg).
+    """
     run_start = time.time()
 
     # Ensure models are localized
     print("Ensuring models are downloaded and localized...")
     subprocess.run([sys.executable, str(DOWNLOAD_MODELS)], check=True)
 
-    if checkpoint is None:
-        checkpoint = str(_find_latest_checkpoint())
-    step_name = Path(checkpoint).stem.replace("lora_weights_", "")
-
     tests = _load_tests()
 
     # Determine batch title from JSON or derive from first test
     batch_title = tests[0].get("batch_title", "manual_tests") if tests else "manual_tests"
 
-    # Create archival output directory (unique path to avoid collisions)
-    batch_dirname = make_batch_dirname(batch_title, step_name)
-    batch_dir = Path(rp.get_unique_copy_path(str(OUTPUTS_DIR / batch_dirname)))
+    # Collect unique checkpoints for display
+    unique_ckpts = sorted(set(t["checkpoint"] for t in tests))
+
+    # Create archival output directory
+    batch_dir = Path(rp.get_unique_copy_path(str(OUTPUTS_DIR / batch_title)))
     batch_dir.mkdir(parents=True, exist_ok=True)
 
     # Save resolved tests as vanilla JSON + source jsonnet for archival
@@ -731,8 +780,8 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     ref_dir = generate_references(batch_dir=batch_dir)
 
     print(f"\n{'=' * 70}")
-    print(f"  Manual Tests - {step_name} ({len(tests)} tests)")
-    print(f"  LoRA: {checkpoint}")
+    print(f"  Manual Tests ({len(tests)} tests, {len(unique_ckpts)} checkpoints)")
+    print(f"  Checkpoints: {', '.join(Path(c).stem for c in unique_ckpts)}")
     print(f"  Output: {batch_dir}")
     print(f"{'=' * 70}\n")
 
@@ -741,14 +790,19 @@ def run(checkpoint: str = None, skip_existing: bool = False):
     latent_dir.mkdir(parents=True, exist_ok=True)
     env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
 
+    def _step_name(t):
+        """Extract step name from a test's resolved checkpoint path."""
+        return Path(t["checkpoint"]).stem.replace("lora_weights_", "")
+
     def _build_stage1_cmd(t, gpu_id):
         """Build the stage 1 inference command for a test."""
         name = t["name"]
+        sn = _step_name(t)
         return [
             "uv", "run", "python", "scripts/inference.py",
             "--checkpoint", MODEL_CHECKPOINT,
             "--text-encoder-path", TEXT_ENCODER,
-            "--lora-path", checkpoint,
+            "--lora-path", t["checkpoint"],
             "--reference-video", str(ref_dir / f"{name}_ref.mp4"),
             "--condition-image", str(ref_dir / f"{name}_condition.png"),
             "--prompt", t["caption"],
@@ -763,8 +817,8 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--skip-audio",
             "--include-reference-in-output",
             "--device", f"cuda:{gpu_id}",
-            "--output", str(batch_dir / f"{name}_{step_name}.mp4"),
-            "--save-latent", str(latent_dir / f"{name}_{step_name}.pt"),
+            "--output", str(batch_dir / f"{name}_{sn}.mp4"),
+            "--save-latent", str(latent_dir / f"{name}_{sn}.pt"),
         ]
 
     def _build_stage2_cmd(t, gpu_id):
@@ -772,7 +826,8 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         if not t.get("stage_2", {}).get("enabled", False):
             return None
         name = t["name"]
-        lp = latent_dir / f"{name}_{step_name}.pt"
+        sn = _step_name(t)
+        lp = latent_dir / f"{name}_{sn}.pt"
         if not lp.exists():
             return None
         src_path = str(HERE / t["input_video"])
@@ -782,7 +837,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         return [
             "uv", "run", "python", str(HERE / "stage2_upscale.py"), "upscale",
             "--latent-path", str(lp),
-            "--output", str(batch_dir / f"{name}_{step_name}_stage2.mp4"),
+            "--output", str(batch_dir / f"{name}_{sn}_stage2.mp4"),
             "--prompt", t["caption"],
             "--first-frame", str(HERE / t["first_frame"]),
             "--pulse-mask-px", str(PULSE_MASK_PX),
@@ -790,7 +845,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
             "--device", f"cuda:{gpu_id}",
             "--seed", str(t.get("seed", 42)),
             "--frame-rate", str(t.get("frame_rate", 25.0)),
-            "--lora-path", checkpoint,
+            "--lora-path", t["checkpoint"],
         ]
 
     # Build per-GPU job queues: each GPU gets its own list of (stage1, stage2) pairs
@@ -804,8 +859,9 @@ def run(checkpoint: str = None, skip_existing: bool = False):
         """Run all jobs for one GPU sequentially: stage1 → stage2 → stage1 → stage2 → ..."""
         for t in queue:
             name = t["name"]
-            output_path = batch_dir / f"{name}_{step_name}.mp4"
-            stage2_path = batch_dir / f"{name}_{step_name}_stage2.mp4"
+            sn = _step_name(t)
+            output_path = batch_dir / f"{name}_{sn}.mp4"
+            stage2_path = batch_dir / f"{name}_{sn}_stage2.mp4"
 
             # Stage 1
             if skip_existing and output_path.exists():
@@ -854,7 +910,7 @@ def run(checkpoint: str = None, skip_existing: bool = False):
 
     # Save metadata
     run_duration = time.time() - run_start
-    metadata = collect_run_metadata(checkpoint, batch_dir)
+    metadata = collect_run_metadata(unique_ckpts, batch_dir)
     metadata["timings"] = {
         "pipeline_seconds": stage1_duration,
         "pipeline_human": format_duration(stage1_duration),
