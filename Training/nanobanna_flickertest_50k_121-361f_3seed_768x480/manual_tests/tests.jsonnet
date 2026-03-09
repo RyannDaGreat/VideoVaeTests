@@ -406,7 +406,7 @@ local slowmo_subjects = [
 //
 // This means: all 99 tests at ckpt 50000 run before any at 25000, etc.
 // Within a checkpoint, all subjects cycle through each cdi×kf combo.
-local base = defaults + { num_diffusion_steps: 30 };
+local base = defaults;
 local all_subjects = normal_subjects + slowmo_subjects;
 [
   base + subj + sweep_point + {
