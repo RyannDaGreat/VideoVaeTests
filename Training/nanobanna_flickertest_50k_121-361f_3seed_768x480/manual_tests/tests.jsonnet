@@ -352,6 +352,68 @@ local subjects = {
     num_frames: 281,  // 281 % 8 == 1; max at 768x480 = 12,960 tokens
     width: 768, height: 480,
   },
+  // ── William boat (CG previz → photoreal storm yacht) ───────────────────
+  local _william_caption = |||
+    A cinematic wide shot of a sturdy white motor yacht cutting through violent, dark ocean swells during a fierce storm. The vessel sits low in the frame, its two-deck cabin structure and radar mast silhouetted against a sky of dense, roiling charcoal storm clouds. Warm amber cabin lights glow through the windows and illuminate the deck railings, casting sharp reflections on the wet hull and churning water below.
+    Massive dark waves roll past the hull, rocking the boat as white spray erupts along the waterline. The ocean surface is a turbulent landscape of deep troughs and wind-whipped crests, textured with streaks of foam. Rain streaks through the frame, caught in the warm deck lighting, while the background sky churns with dramatic cloud formations lit from within by distant lightning.
+    The lighting is high-contrast and moody — warm amber from the vessel's lights against the cold, desaturated blue-gray of the storm. The camera holds steady at a low angle slightly off the bow, emphasizing the weight of the waves against the hull.
+  |||,
+  // Normal: 69f source → 65f valid, 24fps. Max res per tier computed from 13,248 token limit.
+  william_boat_hi: {
+    batch_name: "wboat_hi",
+    input_video: "raw_inputs/william_boat_test_01.mp4",
+    first_frame: "raw_inputs/william_boat_gen_01.jpg",
+    frame_rate: 24.0,
+    num_frames: 65,
+    width: 1664, height: 864,  // 12,636 tokens (LT=9)
+    caption: _william_caption,
+  },
+  william_boat_med: {
+    batch_name: "wboat_med",
+    input_video: "raw_inputs/william_boat_test_01.mp4",
+    first_frame: "raw_inputs/william_boat_gen_01.jpg",
+    frame_rate: 24.0,
+    num_frames: 65,
+    width: 1376, height: 736,  // 8,901 tokens (LT=9)
+    caption: _william_caption,
+  },
+  william_boat_lo: {
+    batch_name: "wboat_lo",
+    input_video: "raw_inputs/william_boat_test_01.mp4",
+    first_frame: "raw_inputs/william_boat_gen_01.jpg",
+    frame_rate: 24.0,
+    num_frames: 65,
+    width: 1152, height: 608,  // 6,156 tokens (LT=9)
+    caption: _william_caption,
+  },
+  // Slowmo: 137f valid as-is, 60fps. Max res per tier.
+  william_boat_slo_hi: {
+    batch_name: "wboat_slo_hi",
+    input_video: "raw_inputs/william_boat_test_01_slowmo2x.mp4",
+    first_frame: "raw_inputs/william_boat_gen_01.jpg",
+    frame_rate: 60.0,
+    num_frames: 137,
+    width: 1184, height: 608,  // 12,654 tokens (LT=18)
+    caption: _william_caption,
+  },
+  william_boat_slo_med: {
+    batch_name: "wboat_slo_med",
+    input_video: "raw_inputs/william_boat_test_01_slowmo2x.mp4",
+    first_frame: "raw_inputs/william_boat_gen_01.jpg",
+    frame_rate: 60.0,
+    num_frames: 137,
+    width: 1024, height: 544,  // 9,792 tokens (LT=18)
+    caption: _william_caption,
+  },
+  william_boat_slo_lo: {
+    batch_name: "wboat_slo_lo",
+    input_video: "raw_inputs/william_boat_test_01_slowmo2x.mp4",
+    first_frame: "raw_inputs/william_boat_gen_01.jpg",
+    frame_rate: 60.0,
+    num_frames: 137,
+    width: 896, height: 480,  // 7,560 tokens (LT=18)
+    caption: _william_caption,
+  },
 };
 
 
@@ -408,11 +470,39 @@ local slowmo_subjects = [
 // Within a checkpoint, all subjects cycle through each cdi×kf combo.
 local base = defaults + { num_diffusion_steps: 20 };
 local all_subjects = normal_subjects + slowmo_subjects;
-[
+local previz_tests = [
   base + subj + sweep_point + {
     name: "%s_%d" % [subj.batch_name, i],
   }
   for i in std.range(0, std.length(sweep) - 1)
   for sweep_point in [sweep[i]]
   for subj in all_subjects
-]
+];
+
+// ── William boat sweep: latest ckpt × cdi [0,1,2] × 6 resolution tiers ──
+// 1 ckpt × 3 cdi × 6 subjects = 18 tests. Fixed 16 keyframes.
+local william_cdi = [0, 1, 2];
+local william_subjects = [
+  subjects.william_boat_hi,       // 65f @ 1664x864
+  subjects.william_boat_med,      // 65f @ 1376x736
+  subjects.william_boat_lo,       // 65f @ 1152x608
+  subjects.william_boat_slo_hi,   // 137f @ 1184x608
+  subjects.william_boat_slo_med,  // 137f @ 1024x544
+  subjects.william_boat_slo_lo,   // 137f @ 896x480
+];
+local william_sweep = [
+  { checkpoint: "latest", cfg_drop_image: cdi, keyframes: "random 16" }
+  for cdi in william_cdi
+];
+local william_tests = [
+  base + subj + wp + {
+    name: "%s_%d" % [subj.batch_name, i],
+  }
+  for i in std.range(0, std.length(william_sweep) - 1)
+  for wp in [william_sweep[i]]
+  for subj in william_subjects
+];
+
+// ── Combined output ──────────────────────────────────────────────────────
+// Previz tests (495) + William boat tests (18) = 513 total
+previz_tests + william_tests
