@@ -504,5 +504,6 @@ local william_tests = [
 ];
 
 // ── Combined output ──────────────────────────────────────────────────────
-// Previz tests (495) + William boat tests (18) = 513 total
-previz_tests + william_tests
+// previz_tests (495) + william_tests (18) = 513 total
+// Uncomment to run all: previz_tests + william_tests
+william_tests
