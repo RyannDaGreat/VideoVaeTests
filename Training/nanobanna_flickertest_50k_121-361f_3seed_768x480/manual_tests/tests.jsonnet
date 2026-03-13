@@ -414,8 +414,64 @@ local subjects = {
     width: 896, height: 480,  // 7,560 tokens (LT=18)
     caption: _william_caption,
   },
+  // ── Yash test subjects (20 normal + 20 slowmo) ──────────────────────────
+  // Each subject stores max_num_frames (largest valid %8==1 frame count).
+  // The sweep applies resolution tiers that may cap num_frames further.
+  yash_1101359:     { batch_name: "y1101359",     input_video: "raw_inputs/yash_test_1/1101359_before.mp4",           first_frame: "raw_inputs/yash_test_1/1101359_firstframe.png", max_num_frames: 97,  caption: importstr "raw_inputs/yash_test_1/1101359_prompt.txt" },
+  yash_1101345:     { batch_name: "y1101345",     input_video: "raw_inputs/yash_test_1/1101345_before.mp4",           first_frame: "raw_inputs/yash_test_1/1101345_firstframe.png", max_num_frames: 297, caption: importstr "raw_inputs/yash_test_1/1101345_prompt.txt" },
+  yash_1212228:     { batch_name: "y1212228",     input_video: "raw_inputs/yash_test_1/1212228_before.mp4",           first_frame: "raw_inputs/yash_test_1/1212228_firstframe.png", max_num_frames: 105, caption: importstr "raw_inputs/yash_test_1/1212228_prompt.txt" },
+  yash_1034233:     { batch_name: "y1034233",     input_video: "raw_inputs/yash_test_1/1034233_before.mp4",           first_frame: "raw_inputs/yash_test_1/1034233_firstframe.png", max_num_frames: 89,  caption: importstr "raw_inputs/yash_test_1/1034233_prompt.txt" },
+  yash_1149468:     { batch_name: "y1149468",     input_video: "raw_inputs/yash_test_1/1149468_before.mp4",           first_frame: "raw_inputs/yash_test_1/1149468_firstframe.png", max_num_frames: 65,  caption: importstr "raw_inputs/yash_test_1/1149468_prompt.txt" },
+  yash_1175985:     { batch_name: "y1175985",     input_video: "raw_inputs/yash_test_1/1175985_before.mp4",           first_frame: "raw_inputs/yash_test_1/1175985_firstframe.png", max_num_frames: 81,  caption: importstr "raw_inputs/yash_test_1/1175985_prompt.txt" },
+  yash_1229917:     { batch_name: "y1229917",     input_video: "raw_inputs/yash_test_1/1229917_before.mp4",           first_frame: "raw_inputs/yash_test_1/1229917_firstframe.png", max_num_frames: 17,  caption: importstr "raw_inputs/yash_test_1/1229917_prompt.txt" },
+  yash_1303946:     { batch_name: "y1303946",     input_video: "raw_inputs/yash_test_1/1303946_before.mp4",           first_frame: "raw_inputs/yash_test_1/1303946_firstframe.png", max_num_frames: 113, caption: importstr "raw_inputs/yash_test_1/1303946_prompt.txt" },
+  yash_1313394:     { batch_name: "y1313394",     input_video: "raw_inputs/yash_test_1/1313394_before.mp4",           first_frame: "raw_inputs/yash_test_1/1313394_firstframe.png", max_num_frames: 89,  caption: importstr "raw_inputs/yash_test_1/1313394_prompt.txt" },
+  yash_1342377:     { batch_name: "y1342377",     input_video: "raw_inputs/yash_test_1/1342377_before.mp4",           first_frame: "raw_inputs/yash_test_1/1342377_firstframe.png", max_num_frames: 273, caption: importstr "raw_inputs/yash_test_1/1342377_prompt.txt" },
+  yash_1229771:     { batch_name: "y1229771",     input_video: "raw_inputs/yash_test_1/1229771_before.mp4",           first_frame: "raw_inputs/yash_test_1/1229771_firstframe.png", max_num_frames: 73,  caption: importstr "raw_inputs/yash_test_1/1229771_prompt.txt" },
+  yash_1131698:     { batch_name: "y1131698",     input_video: "raw_inputs/yash_test_1/1131698_before.mp4",           first_frame: "raw_inputs/yash_test_1/1131698_firstframe.png", max_num_frames: 57,  caption: importstr "raw_inputs/yash_test_1/1131698_prompt.txt" },
+  yash_1143352:     { batch_name: "y1143352",     input_video: "raw_inputs/yash_test_1/1143352_before.mp4",           first_frame: "raw_inputs/yash_test_1/1143352_firstframe.png", max_num_frames: 81,  caption: importstr "raw_inputs/yash_test_1/1143352_prompt.txt" },
+  yash_1357553:     { batch_name: "y1357553",     input_video: "raw_inputs/yash_test_1/1357553_before.mp4",           first_frame: "raw_inputs/yash_test_1/1357553_firstframe.png", max_num_frames: 89,  caption: importstr "raw_inputs/yash_test_1/1357553_prompt.txt" },
+  yash_1197515:     { batch_name: "y1197515",     input_video: "raw_inputs/yash_test_1/1197515_before.mp4",           first_frame: "raw_inputs/yash_test_1/1197515_firstframe.png", max_num_frames: 265, caption: importstr "raw_inputs/yash_test_1/1197515_prompt.txt" },
+  yash_1271166:     { batch_name: "y1271166",     input_video: "raw_inputs/yash_test_1/1271166_before.mp4",           first_frame: "raw_inputs/yash_test_1/1271166_firstframe.png", max_num_frames: 89,  caption: importstr "raw_inputs/yash_test_1/1271166_prompt.txt" },
+  yash_1366800:     { batch_name: "y1366800",     input_video: "raw_inputs/yash_test_1/1366800_before.mp4",           first_frame: "raw_inputs/yash_test_1/1366800_firstframe.png", max_num_frames: 17,  caption: importstr "raw_inputs/yash_test_1/1366800_prompt.txt" },
+  yash_1383324:     { batch_name: "y1383324",     input_video: "raw_inputs/yash_test_1/1383324_before.mp4",           first_frame: "raw_inputs/yash_test_1/1383324_firstframe.png", max_num_frames: 105, caption: importstr "raw_inputs/yash_test_1/1383324_prompt.txt" },
+  yash_744751:      { batch_name: "y744751",      input_video: "raw_inputs/yash_test_1/744751_before.mp4",            first_frame: "raw_inputs/yash_test_1/744751_firstframe.png",  max_num_frames: 33,  caption: importstr "raw_inputs/yash_test_1/744751_prompt.txt" },
+  yash_1316779:     { batch_name: "y1316779",     input_video: "raw_inputs/yash_test_1/1316779_before.mp4",           first_frame: "raw_inputs/yash_test_1/1316779_firstframe.png", max_num_frames: 33,  caption: importstr "raw_inputs/yash_test_1/1316779_prompt.txt" },
+  // Slowmo (2x RIFE interpolated)
+  yash_1101359_slo: { batch_name: "y1101359s",    input_video: "raw_inputs/yash_test_1/1101359_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1101359_firstframe.png", max_num_frames: 193, caption: importstr "raw_inputs/yash_test_1/1101359_prompt.txt" },
+  yash_1101345_slo: { batch_name: "y1101345s",    input_video: "raw_inputs/yash_test_1/1101345_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1101345_firstframe.png", max_num_frames: 593, caption: importstr "raw_inputs/yash_test_1/1101345_prompt.txt" },
+  yash_1212228_slo: { batch_name: "y1212228s",    input_video: "raw_inputs/yash_test_1/1212228_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1212228_firstframe.png", max_num_frames: 217, caption: importstr "raw_inputs/yash_test_1/1212228_prompt.txt" },
+  yash_1034233_slo: { batch_name: "y1034233s",    input_video: "raw_inputs/yash_test_1/1034233_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1034233_firstframe.png", max_num_frames: 185, caption: importstr "raw_inputs/yash_test_1/1034233_prompt.txt" },
+  yash_1149468_slo: { batch_name: "y1149468s",    input_video: "raw_inputs/yash_test_1/1149468_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1149468_firstframe.png", max_num_frames: 137, caption: importstr "raw_inputs/yash_test_1/1149468_prompt.txt" },
+  yash_1175985_slo: { batch_name: "y1175985s",    input_video: "raw_inputs/yash_test_1/1175985_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1175985_firstframe.png", max_num_frames: 161, caption: importstr "raw_inputs/yash_test_1/1175985_prompt.txt" },
+  yash_1229917_slo: { batch_name: "y1229917s",    input_video: "raw_inputs/yash_test_1/1229917_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1229917_firstframe.png", max_num_frames: 41,  caption: importstr "raw_inputs/yash_test_1/1229917_prompt.txt" },
+  yash_1303946_slo: { batch_name: "y1303946s",    input_video: "raw_inputs/yash_test_1/1303946_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1303946_firstframe.png", max_num_frames: 225, caption: importstr "raw_inputs/yash_test_1/1303946_prompt.txt" },
+  yash_1313394_slo: { batch_name: "y1313394s",    input_video: "raw_inputs/yash_test_1/1313394_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1313394_firstframe.png", max_num_frames: 177, caption: importstr "raw_inputs/yash_test_1/1313394_prompt.txt" },
+  yash_1342377_slo: { batch_name: "y1342377s",    input_video: "raw_inputs/yash_test_1/1342377_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1342377_firstframe.png", max_num_frames: 553, caption: importstr "raw_inputs/yash_test_1/1342377_prompt.txt" },
+  yash_1229771_slo: { batch_name: "y1229771s",    input_video: "raw_inputs/yash_test_1/1229771_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1229771_firstframe.png", max_num_frames: 145, caption: importstr "raw_inputs/yash_test_1/1229771_prompt.txt" },
+  yash_1131698_slo: { batch_name: "y1131698s",    input_video: "raw_inputs/yash_test_1/1131698_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1131698_firstframe.png", max_num_frames: 121, caption: importstr "raw_inputs/yash_test_1/1131698_prompt.txt" },
+  yash_1143352_slo: { batch_name: "y1143352s",    input_video: "raw_inputs/yash_test_1/1143352_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1143352_firstframe.png", max_num_frames: 169, caption: importstr "raw_inputs/yash_test_1/1143352_prompt.txt" },
+  yash_1357553_slo: { batch_name: "y1357553s",    input_video: "raw_inputs/yash_test_1/1357553_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1357553_firstframe.png", max_num_frames: 177, caption: importstr "raw_inputs/yash_test_1/1357553_prompt.txt" },
+  yash_1197515_slo: { batch_name: "y1197515s",    input_video: "raw_inputs/yash_test_1/1197515_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1197515_firstframe.png", max_num_frames: 529, caption: importstr "raw_inputs/yash_test_1/1197515_prompt.txt" },
+  yash_1271166_slo: { batch_name: "y1271166s",    input_video: "raw_inputs/yash_test_1/1271166_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1271166_firstframe.png", max_num_frames: 185, caption: importstr "raw_inputs/yash_test_1/1271166_prompt.txt" },
+  yash_1366800_slo: { batch_name: "y1366800s",    input_video: "raw_inputs/yash_test_1/1366800_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1366800_firstframe.png", max_num_frames: 41,  caption: importstr "raw_inputs/yash_test_1/1366800_prompt.txt" },
+  yash_1383324_slo: { batch_name: "y1383324s",    input_video: "raw_inputs/yash_test_1/1383324_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1383324_firstframe.png", max_num_frames: 209, caption: importstr "raw_inputs/yash_test_1/1383324_prompt.txt" },
+  yash_744751_slo:  { batch_name: "y744751s",     input_video: "raw_inputs/yash_test_1/744751_before_slowmo2x.mp4",   first_frame: "raw_inputs/yash_test_1/744751_firstframe.png",  max_num_frames: 65,  caption: importstr "raw_inputs/yash_test_1/744751_prompt.txt" },
+  yash_1316779_slo: { batch_name: "y1316779s",    input_video: "raw_inputs/yash_test_1/1316779_before_slowmo2x.mp4",  first_frame: "raw_inputs/yash_test_1/1316779_firstframe.png", max_num_frames: 65,  caption: importstr "raw_inputs/yash_test_1/1316779_prompt.txt" },
 };
 
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+// Snap frame count down to nearest n where n % 8 == 1 (VAE temporal alignment).
+local snap8p1(n) =
+  local r = n % 8;
+  if r == 1 then n
+  else if r == 0 then n - 7
+  else n - (r - 1);
+
+// Token count for a given (num_frames, width, height).
+// LT = (num_frames - 1) / 8 + 1;  spatial = (width/32) * (height/32)
+local token_count(nf, w, h) = ((nf - 1) / 8 + 1) * (w / 32) * (h / 32);
 
 // ── Test generator (applies a sweep to a base config) ───────────────────────
 local make_tests(config, sweep) = [
@@ -503,7 +559,72 @@ local william_tests = [
   for subj in william_subjects
 ];
 
+// ── Yash test sweep: cdi × fps × resolution tier × 40 subjects ─────────────
+// Resolution tiers (width, height, max_frames at 13,248 token limit):
+//   hi:  1152×736  → max 121f (LT=16, spatial=828)
+//   med: 768×480   → max 281f (LT=36, spatial=360)
+//   lo:  544×320   → max 609f (LT=77, spatial=170)
+//
+// For each subject, num_frames = min(max_num_frames, tier_max_frames) snapped to %8==1.
+// A test is included only if its token count ≤ 13,248.
+local yash_token_limit = 13248;
+local yash_cdi_values = [0, 1, 2, 3];
+local yash_fps_values = [25, 40, 60];
+local yash_tiers = [
+  { name: "hi",  width: 1152, height: 736, max_frames: 121 },  // (16-1)*8+1
+  { name: "med", width: 768,  height: 480, max_frames: 281 },  // (36-1)*8+1 → but snap: 35*8+1=281
+  { name: "lo",  width: 544,  height: 320, max_frames: 609 },  // (77-1)*8+1 → 76*8+1=609
+];
+local yash_all_subjects = [
+  subjects.yash_1101359,     subjects.yash_1101345,     subjects.yash_1212228,
+  subjects.yash_1034233,     subjects.yash_1149468,     subjects.yash_1175985,
+  subjects.yash_1229917,     subjects.yash_1303946,     subjects.yash_1313394,
+  subjects.yash_1342377,     subjects.yash_1229771,     subjects.yash_1131698,
+  subjects.yash_1143352,     subjects.yash_1357553,     subjects.yash_1197515,
+  subjects.yash_1271166,     subjects.yash_1366800,     subjects.yash_1383324,
+  subjects.yash_744751,      subjects.yash_1316779,
+  subjects.yash_1101359_slo, subjects.yash_1101345_slo, subjects.yash_1212228_slo,
+  subjects.yash_1034233_slo, subjects.yash_1149468_slo, subjects.yash_1175985_slo,
+  subjects.yash_1229917_slo, subjects.yash_1303946_slo, subjects.yash_1313394_slo,
+  subjects.yash_1342377_slo, subjects.yash_1229771_slo, subjects.yash_1131698_slo,
+  subjects.yash_1143352_slo, subjects.yash_1357553_slo, subjects.yash_1197515_slo,
+  subjects.yash_1271166_slo, subjects.yash_1366800_slo, subjects.yash_1383324_slo,
+  subjects.yash_744751_slo,  subjects.yash_1316779_slo,
+];
+
+local yash_base = defaults + {
+  num_diffusion_steps: 20,
+  keyframes: "random 16",
+  checkpoint: "latest",
+  stage_2: { enabled: true },
+};
+
+// Build the flat test list. Iteration: cdi → fps → tier → subject.
+local yash_tests = [
+  local nf = snap8p1(std.min(subj.max_num_frames, tier.max_frames));
+  local tokens = token_count(nf, tier.width, tier.height);
+  yash_base + subj + {
+    cfg_drop_image: cdi,
+    frame_rate: fps,
+    width: tier.width,
+    height: tier.height,
+    num_frames: nf,
+    name: "%s_cdi%d_fps%d_%s" % [subj.batch_name, cdi, fps, tier.name],
+    batch_title: "%s_%s_cdi%d_fps%d_%dx%d_%dstep" % [
+      self.batch_name, tier.name, cdi, fps, tier.width, tier.height, self.num_diffusion_steps,
+    ],
+  }
+  for cdi in yash_cdi_values
+  for fps in yash_fps_values
+  for tier in yash_tiers
+  for subj in yash_all_subjects
+  if token_count(snap8p1(std.min(subj.max_num_frames, tier.max_frames)), tier.width, tier.height) <= yash_token_limit
+];
+
 // ── Combined output ──────────────────────────────────────────────────────
 // previz_tests (495) + william_tests (18) = 513 total
-// Uncomment to run all: previz_tests + william_tests
-william_tests
+// yash_tests: 3 cdi × 3 fps × 3 tiers × 40 subjects = 1080 (all fit token limit)
+// Uncomment to switch active test set:
+// previz_tests
+// william_tests
+yash_tests
